@@ -13,6 +13,9 @@ import {
   Building2,
   LogOut,
   ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,22 +70,30 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300",
+        "flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 relative",
         collapsed ? "w-16" : "w-64"
       )}
     >
-      {/* Logo / Organization Branding */}
-      <div className="flex items-center h-14 px-4 border-b border-sidebar-border flex-shrink-0">
-        <Link href={isAdmin ? "/organization" : "/dashboard"} className="flex items-center gap-3 overflow-hidden hover:opacity-85 transition-opacity group">
-
+      {/* Logo / Organization Branding & Top Collapse/Expand Toggle */}
+      <div className="flex items-center h-14 border-b border-sidebar-border flex-shrink-0 px-2.5 justify-between">
+        <Link
+          href={isAdmin ? "/organization" : "/dashboard"}
+          className="flex items-center gap-2.5 overflow-hidden hover:opacity-85 transition-opacity group"
+          title={collapsed ? `${companyName} (Organization)` : undefined}
+        >
           {companyLogo ? (
             <img
               src={companyLogo}
               alt={companyName}
-              className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border"
+              className={cn("rounded-lg object-cover flex-shrink-0 border", collapsed ? "w-7 h-7" : "w-8 h-8")}
             />
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs flex-shrink-0 shadow-xs group-hover:ring-2 ring-primary/30 transition-all">
+            <div
+              className={cn(
+                "rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold flex-shrink-0 shadow-xs group-hover:ring-2 ring-primary/30 transition-all",
+                collapsed ? "w-7 h-7 text-[10px]" : "w-8 h-8 text-xs"
+              )}
+            >
               {companyInitials}
             </div>
           )}
@@ -97,15 +108,28 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             </div>
           )}
         </Link>
-        {!collapsed && onToggle && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggle}
-            className="ml-auto h-7 w-7 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+
+        {/* Top Toggle Button (Expand when collapsed, Collapse when expanded) */}
+        {onToggle && (
+          <Tooltip>
+            <TooltipTrigger render={<span />}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggle}
+                className="h-7 w-7 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0"
+              >
+                {collapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 
@@ -123,7 +147,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                collapsed && "justify-center px-2"
               )}
             >
               <item.icon
@@ -149,11 +174,15 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         })}
       </nav>
 
-      {/* Footer / Logout */}
+      {/* Footer: Logout */}
       <div className="flex-shrink-0 border-t border-sidebar-border p-2">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive"
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive",
+            collapsed && "justify-center px-2"
+          )}
+          title={collapsed ? "Logout" : undefined}
         >
           <LogOut className="h-4 w-4 flex-shrink-0" />
           {!collapsed && <span>Logout</span>}

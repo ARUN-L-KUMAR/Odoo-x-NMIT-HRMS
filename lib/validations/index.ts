@@ -79,7 +79,9 @@ export type CreateEmployeeOutput = z.output<typeof createEmployeeSchema>;
 export const updateEmployeeSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+  email: z.string().email("Invalid email address").optional().nullable(),
   phone: z.string().optional().nullable(),
+
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   state: z.string().optional().nullable(),

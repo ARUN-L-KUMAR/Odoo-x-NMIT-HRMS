@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import {
   DollarSign,
   TrendingUp,
@@ -54,6 +55,10 @@ import type { SalaryStructure } from "@/types";
 
 export default function PayrollPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const configParam = searchParams.get("config");
+  const employeeIdParam = searchParams.get("employeeId");
+
   const userRole = session?.user?.role?.toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isAdmin = userRole === "ADMIN" || isSuperAdmin;
@@ -73,6 +78,23 @@ export default function PayrollPage() {
   const { data: mySalary, isLoading: myLoading } = useMyPayroll();
   const { data: allSalaries, isLoading: allLoading } = useAllPayroll();
   const updateSalary = useUpdateSalary();
+
+  // Auto-open config modal for target employee if redirected from Salary Info tab
+  useEffect(() => {
+    if ((configParam || employeeIdParam) && allSalaries && allSalaries.length > 0) {
+      const target = allSalaries.find(
+        (s) =>
+          s.employeeId === employeeIdParam ||
+          s.employee?.id === employeeIdParam ||
+          (s.employee as any)?.user?.employeeId === employeeIdParam ||
+          s.id === employeeIdParam
+      );
+      if (target) {
+        setConfigSalary(target);
+      }
+    }
+  }, [configParam, employeeIdParam, allSalaries]);
+
 
   // Organizations list for Super Admin
   const { data: orgsList = [] } = useQuery({
@@ -639,8 +661,19 @@ export default function PayrollPage() {
                       const annualCtc = (Number(s.yearlyWage) || gross * 12) + (employerPf * 12);
                       const isConfigured = gross > 0;
 
+                      const isTarget = !!employeeIdParam && (
+                        s.employeeId === employeeIdParam ||
+                        s.employee?.id === employeeIdParam ||
+                        (s.employee as any)?.user?.employeeId === employeeIdParam
+                      );
+
                       return (
-                        <TableRow key={s.employeeId} className="hover:bg-muted/30 transition-colors">
+                        <TableRow
+                          key={s.employeeId}
+                          className={`hover:bg-muted/30 transition-colors ${
+                            isTarget ? "bg-emerald-500/10 ring-2 ring-emerald-500/50 rounded-lg" : ""
+                          }`}
+                        >
                           {/* Employee */}
                           <TableCell className="py-3">
                             <div className="flex items-center gap-3">
@@ -716,7 +749,7 @@ export default function PayrollPage() {
 
                           {/* Actions */}
                           <TableCell className="py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-1.5">
                               {isConfigured && (
                                 <Button
                                   size="icon"
@@ -729,18 +762,24 @@ export default function PayrollPage() {
                                 </Button>
                               )}
                               <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                size={isTarget ? "sm" : "icon"}
+                                variant={isTarget ? "default" : "ghost"}
+                                className={
+                                  isTarget
+                                    ? "h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+                                    : "h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                }
                                 title="Configure Salary Structure"
                                 onClick={() => setConfigSalary(s)}
                               >
                                 <Settings2 className="h-3.5 w-3.5" />
+                                {isTarget && <span>Configure</span>}
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
                       );
+
                     })
                   )}
                 </TableBody>

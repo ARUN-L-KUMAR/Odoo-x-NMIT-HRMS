@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plus, Users, Loader2, Copy, CheckCircle2, KeyRound,
-  Search, SlidersHorizontal, LayoutGrid, List,
+  Search, SlidersHorizontal, LayoutGrid, List, Pencil,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,7 +40,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ExportButton } from "@/components/shared/export-button";
 import { EmployeeGrid } from "@/components/employees/EmployeeGrid";
+import { EditEmployeeModal } from "@/components/employees/EditEmployeeModal";
 import { ImageUpload } from "@/components/shared/image-upload";
+
 import type { AttendanceStatus } from "@/components/employees/EmployeeCard";
 
 import { useEmployees, useCreateEmployee } from "@/hooks";
@@ -206,6 +208,8 @@ export default function EmployeesPage() {
     });
   };
 
+  const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
+
   // Reusable Employee Table View
   const renderTableView = () => (
     <Card className="border shadow-xs overflow-hidden">
@@ -222,20 +226,21 @@ export default function EmployeesPage() {
                 <TableHead>Today</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
+                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading
                 ? [1, 2, 3, 4].map((i) => (
                     <TableRow key={i}>
-                      {[1, 2, 3, 4, 5, 6, 7, ...(isSuperAdmin ? [8] : [])].map((j) => (
+                      {[1, 2, 3, 4, 5, 6, 7, ...(isSuperAdmin ? [8] : []), ...(isAdmin ? [9] : [])].map((j) => (
                         <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>
                       ))}
                     </TableRow>
                   ))
                 : (!employees || employees.length === 0) ? (
                     <TableRow>
-                      <TableCell colSpan={isSuperAdmin ? 8 : 7} className="h-32 text-center text-muted-foreground text-sm">
+                      <TableCell colSpan={isSuperAdmin ? (isAdmin ? 9 : 8) : (isAdmin ? 8 : 7)} className="h-32 text-center text-muted-foreground text-sm">
                         {search ? "No employees match your search" : "No employees found."}
                       </TableCell>
                     </TableRow>
@@ -259,7 +264,7 @@ export default function EmployeesPage() {
                       return (
                         <TableRow
                           key={emp.id}
-                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          className="cursor-pointer hover:bg-muted/50 transition-colors group"
                           onClick={() => router.push(`/employees/${emp.id}`)}
                         >
                           <TableCell>
@@ -271,7 +276,7 @@ export default function EmployeesPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="text-sm font-medium">{emp.firstName} {emp.lastName}</p>
+                                <p className="text-sm font-medium group-hover:text-primary transition-colors">{emp.firstName} {emp.lastName}</p>
                                 <p className="text-xs text-muted-foreground">{emp.user?.email ?? ""}</p>
                               </div>
                             </div>
@@ -304,6 +309,21 @@ export default function EmployeesPage() {
                           <TableCell className="text-sm text-muted-foreground">
                             {emp.joiningDate ? formatDate(emp.joiningDate) : "—"}
                           </TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingEmployee(emp);
+                                }}
+                                className="h-7 text-xs gap-1 text-muted-foreground hover:text-primary"
+                              >
+                                <Pencil className="h-3 w-3" /> Edit
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })
@@ -314,6 +334,7 @@ export default function EmployeesPage() {
       </CardContent>
     </Card>
   );
+
 
   // ─── EMPLOYEE VIEW ────────────────────────────────────────────────────────
   if (!isAdmin) {
@@ -579,12 +600,21 @@ export default function EmployeesPage() {
           attendanceStatusMap={attendanceMap}
           showCompany={isSuperAdmin}
           onCardClick={(id) => router.push(`/employees/${id}`)}
+          onEditCard={isAdmin ? (emp) => setEditingEmployee(emp) : undefined}
           emptyMessage={search ? "No employees match your search" : "Add your first employee to get started"}
         />
       ) : (
         renderTableView()
       )}
+
+      {/* Edit Employee Modal for Admin */}
+      <EditEmployeeModal
+        open={!!editingEmployee}
+        onOpenChange={(open) => !open && setEditingEmployee(null)}
+        employee={editingEmployee}
+      />
     </div>
   );
 }
+
 

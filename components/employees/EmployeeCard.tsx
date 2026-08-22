@@ -1,7 +1,9 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { cn, getInitials } from "@/lib/utils";
+import { Pencil } from "lucide-react";
 
 export type AttendanceStatus = "PRESENT" | "LEAVE" | "HALF_DAY" | "ABSENT" | "UNKNOWN";
 
@@ -17,6 +19,7 @@ interface EmployeeCardProps {
   company?: { name: string; initials: string; logoUrl?: string | null } | null;
   showCompany?: boolean;
   onClick?: () => void;
+  onEdit?: () => void;
 }
 
 /** Status dot config — matches Excalidraw spec */
@@ -58,6 +61,7 @@ export function EmployeeCard({
   company,
   showCompany = false,
   onClick,
+  onEdit,
 }: EmployeeCardProps) {
   const fullName = `${firstName} ${lastName}`.trim();
   const dot = ATTENDANCE_DOT[attendanceStatus];
@@ -82,8 +86,24 @@ export function EmployeeCard({
         isTerminated && "opacity-60"
       )}
     >
+      {/* Edit button on hover for admin */}
+      {onEdit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          title="Edit Employee Profile"
+          className="absolute top-3 right-3 h-7 w-7 rounded-full bg-muted/80 hover:bg-primary hover:text-primary-foreground border text-muted-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10 shadow-xs"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
+
       {/* Avatar with status dot */}
       <div className="relative">
+
         <Avatar className="h-20 w-20 ring-2 ring-background shadow-md group-hover:ring-primary/20 transition-all">
           <AvatarImage src={profileImage ?? undefined} alt={fullName} />
           <AvatarFallback className="text-xl font-bold bg-gradient-to-br from-primary/20 to-primary/10 text-primary">

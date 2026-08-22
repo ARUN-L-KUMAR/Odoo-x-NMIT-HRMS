@@ -18,6 +18,7 @@ interface EmployeeGridProps {
   employees: Employee[];
   isLoading?: boolean;
   onCardClick?: (id: string) => void;
+  onEditCard?: (emp: Employee) => void;
   emptyMessage?: string;
   /** Map of employee DB id → today's attendance status */
   attendanceStatusMap?: Record<string, AttendanceStatus>;
@@ -28,6 +29,7 @@ export function EmployeeGrid({
   employees,
   isLoading,
   onCardClick,
+  onEditCard,
   emptyMessage = "No employees found.",
   attendanceStatusMap = {},
   showCompany = false,
@@ -74,8 +76,10 @@ export function EmployeeGrid({
           company={emp.company}
           showCompany={showCompany}
           onClick={onCardClick ? () => onCardClick(emp.id) : undefined}
+          onEdit={onEditCard ? () => onEditCard(emp) : undefined}
         />
       ))}
     </div>
   );
+
 }

@@ -130,6 +130,7 @@ export async function PATCH(
     const {
       dateOfBirth,
       joiningDate,
+      email,
       ...otherData
     } = parsed.data as any;
 
@@ -150,11 +151,44 @@ export async function PATCH(
         : null;
     }
 
+    // If Admin changed email or name, update the linked User record
+    if (isAdmin) {
+      const currentEmp = await prisma.employee.findUnique({
+        where: { id },
+        select: { id: true, userId: true, user: { select: { email: true } } },
+      });
+
+      if (currentEmp?.userId) {
+        const userUpdateData: any = {};
+        if (email && email.toLowerCase() !== currentEmp.user?.email?.toLowerCase()) {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+          });
+          if (existingUser && existingUser.id !== currentEmp.userId) {
+            return errorResponse("CONFLICT", "Email is already in use by another user.", {}, 409);
+          }
+          userUpdateData.email = email.toLowerCase();
+        }
+
+        if (otherData.firstName || otherData.lastName) {
+          userUpdateData.name = `${otherData.firstName || ""} ${otherData.lastName || ""}`.trim();
+        }
+
+        if (Object.keys(userUpdateData).length > 0) {
+          await prisma.user.update({
+            where: { id: currentEmp.userId },
+            data: userUpdateData,
+          });
+        }
+      }
+    }
+
     const employee = await prisma.employee.update({
       where: { id },
       data: updateData,
       select: fullEmployeeSelect,
     });
+
 
     // Log activity
     await prisma.activityLog.create({
