@@ -3,14 +3,14 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/permissions";
 import { Role, AttendanceStatus } from "@/lib/enums";
 
-
-// GET /api/attendance — admin: all (filterable), employee: redirect to /me
+// GET /api/attendance — admin: all (filterable), employee: their own records
 export async function GET(req: NextRequest) {
   try {
     const session = await requireAuth();
     const { searchParams } = new URL(req.url);
 
     const isAdmin = session.user.role === Role.ADMIN;
+    const date = searchParams.get("date");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const employeeId = searchParams.get("employeeId");
@@ -33,10 +33,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (from || to) {
+    if (date) {
+      const d = new Date(date);
+      const start = new Date(d);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(d);
+      end.setHours(23, 59, 59, 999);
+      where.attendanceDate = { gte: start, lte: end };
+    } else if (from || to) {
       where.attendanceDate = {};
-      if (from) where.attendanceDate.gte = new Date(from);
-      if (to) where.attendanceDate.lte = new Date(to);
+      if (from) {
+        const start = new Date(from);
+        start.setHours(0, 0, 0, 0);
+        where.attendanceDate.gte = start;
+      }
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        where.attendanceDate.lte = end;
+      }
     }
 
     if (status) {
@@ -54,11 +69,17 @@ export async function GET(req: NextRequest) {
             profileImage: true,
             department: true,
             designation: true,
+            user: {
+              select: {
+                employeeId: true,
+                email: true,
+              },
+            },
           },
         },
       },
       orderBy: { attendanceDate: "desc" },
-      take: 100,
+      take: 200,
     });
 
     return Response.json({ success: true, data: records, message: "OK" });
