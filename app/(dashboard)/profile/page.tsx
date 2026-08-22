@@ -147,13 +147,14 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 w-full">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-64 w-full rounded-2xl" />
         <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     );
   }
+
 
   const employee = data?.employee;
   const name = `${employee?.firstName || ""} ${employee?.lastName || ""}`.trim();
@@ -175,7 +176,7 @@ export default function ProfilePage() {
   const profTax = Number(salary?.professionalTax || 200);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
+    <div className="space-y-6 w-full pb-12">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">My Profile</h1>
         <p className="text-muted-foreground text-sm mt-0.5">
@@ -188,16 +189,14 @@ export default function ProfilePage() {
         <Card className="border shadow-xs overflow-hidden">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row gap-6 items-start">
-              {/* Avatar + Cloudinary Upload */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="relative group">
-                  <Avatar className="h-28 w-28 ring-4 ring-background shadow-md">
-                    <AvatarImage src={watch("profileImage") || employee?.profileImage || undefined} />
-                    <AvatarFallback className="text-3xl font-bold bg-primary/10 text-primary">
-                      {getInitials(name || session?.user?.employeeId || "U")}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
+              {/* Avatar with floating Edit Photo button */}
+              <div className="flex flex-col items-center gap-2 shrink-0">
+                <Avatar className="h-28 w-28 ring-4 ring-background shadow-md">
+                  <AvatarImage src={watch("profileImage") || employee?.profileImage || undefined} />
+                  <AvatarFallback className="text-3xl font-bold bg-primary/10 text-primary">
+                    {getInitials(name || session?.user?.employeeId || "U")}
+                  </AvatarFallback>
+                </Avatar>
                 <ImageUpload
                   value={watch("profileImage") || employee?.profileImage || null}
                   onChange={(url) => {
@@ -207,11 +206,14 @@ export default function ProfilePage() {
                     }
                   }}
                   folder="HRMS"
-                  label="Upload Photo"
+                  label="Change Photo"
                   shape="circle"
                   size="sm"
+                  hidePreview={true}
                 />
+
               </div>
+
 
               {/* Left Column Info */}
               <div className="flex-1 space-y-3 min-w-0">

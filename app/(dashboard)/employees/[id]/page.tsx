@@ -37,7 +37,7 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 w-full">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-48 w-full rounded-2xl" />
         <Skeleton className="h-80 w-full rounded-2xl" />
@@ -47,7 +47,7 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
 
   if (!employee) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 w-full">
         <Button variant="ghost" size="sm" className="gap-2" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" /> Back to Employees
         </Button>
@@ -80,7 +80,8 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
   const profTax = Number(salary?.professionalTax || 200);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
+    <div className="space-y-6 w-full pb-12">
+
       {/* Back button */}
       <Button variant="ghost" size="sm" className="gap-2" onClick={() => router.push("/employees")}>
         <ArrowLeft className="h-4 w-4" /> Back to Employees
