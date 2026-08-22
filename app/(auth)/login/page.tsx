@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
+import { Eye, EyeOff, LogIn, Loader2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,13 +30,13 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginInput) => {
     setError(null);
     const result = await signIn("credentials", {
-      email: data.email,
+      identifier: data.identifier,
       password: data.password,
       redirect: false,
     });
 
     if (result?.error) {
-      setError("Invalid email or password. Please try again.");
+      setError("Invalid Login ID / Email or password. Please try again.");
       return;
     }
 
@@ -46,7 +46,8 @@ export default function LoginPage() {
 
   const fillDemo = (type: "admin" | "employee") => {
     const account = DEMO_ACCOUNTS[type];
-    setValue("email", account.email);
+    // Use email for demo — both work
+    setValue("identifier", account.email);
     setValue("password", account.password);
     setError(null);
   };
@@ -63,7 +64,7 @@ export default function LoginPage() {
         </div>
         <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
         <p className="text-muted-foreground text-sm">
-          Sign in to your Dayflow account to continue
+          Sign in with your Login ID or Email address
         </p>
       </div>
 
@@ -116,18 +117,21 @@ export default function LoginPage() {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
+          <Label htmlFor="identifier">Login ID / Email</Label>
           <Input
-            id="email"
-            type="email"
-            placeholder="you@company.com"
-            autoComplete="email"
-            {...register("email")}
-            className={errors.email ? "border-destructive" : ""}
+            id="identifier"
+            type="text"
+            placeholder="DFJODO20240001 or you@company.com"
+            autoComplete="username"
+            {...register("identifier")}
+            className={errors.identifier ? "border-destructive" : ""}
           />
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
+          {errors.identifier && (
+            <p className="text-xs text-destructive">{errors.identifier.message}</p>
           )}
+          <p className="text-[11px] text-muted-foreground">
+            Use your auto-generated Login ID or registered email address
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -175,21 +179,27 @@ export default function LoginPage() {
           ) : (
             <>
               <LogIn className="h-4 w-4 mr-2" />
-              Sign in
+              Sign In
             </>
           )}
         </Button>
       </form>
 
-      <p className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/register"
-          className="text-primary font-medium hover:underline"
-        >
-          Register
-        </Link>
-      </p>
+      <div className="text-center space-y-2">
+        <p className="text-sm text-muted-foreground">
+          First time setting up?{" "}
+          <Link
+            href="/register"
+            className="text-primary font-medium hover:underline inline-flex items-center gap-1"
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            Company Setup
+          </Link>
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          Employees are added by your HR Administrator
+        </p>
+      </div>
     </div>
   );
 }

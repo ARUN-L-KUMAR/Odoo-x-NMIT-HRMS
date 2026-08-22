@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { format, subDays } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, subWeeks, addWeeks, isSameWeek } from "date-fns";
 import {
   LogIn,
   LogOut,
@@ -9,6 +9,9 @@ import {
   Clock,
   CalendarDays,
   Filter,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import type { DateRange } from "react-day-picker";
@@ -60,15 +63,21 @@ export default function AttendancePage() {
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
+  // Week navigation for employee history
+  const [weekOffset, setWeekOffset] = useState(0);
+  const currentWeekStart = startOfWeek(subWeeks(new Date(), -weekOffset), { weekStartsOn: 1 });
+  const currentWeekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+  const isCurrentWeek = weekOffset === 0;
+
   const { data: todayAtt } = useTodayAttendance();
 
-  // Build date params — use date range picker if set, otherwise default to last 30 days (employee)
+  // Date range for employee history: use custom range if set, otherwise use week navigation
   const from = dateRange?.from
     ? format(dateRange.from, "yyyy-MM-dd")
-    : format(subDays(new Date(), 30), "yyyy-MM-dd");
+    : format(currentWeekStart, "yyyy-MM-dd");
   const to = dateRange?.to
     ? format(dateRange.to, "yyyy-MM-dd")
-    : format(new Date(), "yyyy-MM-dd");
+    : format(currentWeekEnd, "yyyy-MM-dd");
 
   const { data: myAttendance, isLoading: myLoading } = useMyAttendance({ from, to });
   const { data: allAttendance, isLoading: allLoading } = useAllAttendance(
@@ -80,6 +89,7 @@ export default function AttendancePage() {
 
   const canCheckIn = !todayAtt?.checkIn;
   const canCheckOut = !!todayAtt?.checkIn && !todayAtt?.checkOut;
+  const attendanceComplete = !!todayAtt?.checkIn && !!todayAtt?.checkOut;
 
   const displayData = isAdmin ? allAttendance : myAttendance;
   const isLoading = isAdmin ? allLoading : myLoading;
@@ -91,7 +101,6 @@ export default function AttendancePage() {
       `${r.employee?.firstName} ${r.employee?.lastName}`
         .toLowerCase()
         .includes(employeeSearch.toLowerCase());
-    // Date range filter for admin (employee is already filtered server-side)
     const dateOk =
       !dateRange?.from ||
       !dateRange?.to ||
@@ -108,7 +117,7 @@ export default function AttendancePage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {isAdmin ? "Attendance Management" : "My Attendance"}
+            {isAdmin ? "Attendance" : "Attendance"}
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {isAdmin
@@ -118,7 +127,6 @@ export default function AttendancePage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Export CSV */}
           <ExportButton
             data={filtered ?? []}
             filename="attendance"
@@ -139,84 +147,135 @@ export default function AttendancePage() {
               { header: "Status", accessor: "status" as const },
             ]}
           />
-
-          {/* Employee check-in/out */}
-          {!isAdmin && (
-            <>
-              <Button
-                onClick={() => checkIn.mutate()}
-                disabled={!canCheckIn || checkIn.isPending}
-                size="sm"
-                className="gap-2"
-              >
-                {checkIn.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LogIn className="h-4 w-4" />
-                )}
-                Check In
-              </Button>
-              <Button
-                onClick={() => checkOut.mutate()}
-                disabled={!canCheckOut || checkOut.isPending}
-                size="sm"
-                variant="outline"
-                className="gap-2"
-              >
-                {checkOut.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LogOut className="h-4 w-4" />
-                )}
-                Check Out
-              </Button>
-            </>
-          )}
         </div>
       </div>
 
-      {/* Today's status (employee only) */}
+      {/* Today's status — Employee only (Excalidraw state machine) */}
       {!isAdmin && (
         <Card>
           <CardContent className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex-1">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  Today&apos;s Status — {format(new Date(), "MMMM d, yyyy")}
-                </p>
-                {todayAtt ? (
-                  <div className="flex flex-wrap items-center gap-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE_CLASS[todayAtt.status as AttendanceStatus]}`}
-                    >
-                      {ATTENDANCE_STATUS_CONFIG[todayAtt.status as AttendanceStatus]?.label}
-                    </span>
-                    {todayAtt.checkIn && (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <LogIn className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>Check-in: <strong>{formatTime(todayAtt.checkIn)}</strong></span>
-                      </div>
-                    )}
-                    {todayAtt.checkOut && (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>Check-out: <strong>{formatTime(todayAtt.checkOut)}</strong></span>
-                      </div>
-                    )}
-                    {todayAtt.workedMinutes > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>Worked: <strong>{formatWorkedTime(todayAtt.workedMinutes)}</strong></span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">You haven&apos;t checked in yet today.</p>
-                )}
+            <p className="text-xs font-medium text-muted-foreground mb-3">
+              Today — {format(new Date(), "EEEE, MMMM d, yyyy")}
+            </p>
+
+            {/* State 3: Attendance completed */}
+            {attendanceComplete && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                    Attendance Completed
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { icon: LogIn, label: "Check In", value: formatTime(todayAtt!.checkIn!) },
+                    { icon: LogOut, label: "Check Out", value: formatTime(todayAtt!.checkOut!) },
+                    { icon: Clock, label: "Worked", value: formatWorkedTime(todayAtt!.workedMinutes) },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="rounded-lg bg-muted/50 px-3 py-2.5 text-center">
+                      <Icon className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
+                      <p className="text-sm font-semibold mt-0.5">{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-success">
+                  Present
+                </span>
               </div>
-            </div>
+            )}
+
+            {/* State 2: Checked in, not out */}
+            {!attendanceComplete && todayAtt?.checkIn && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-sm font-medium">
+                    Checked in at <strong>{formatTime(todayAtt.checkIn)}</strong>
+                  </span>
+                </div>
+                <Button
+                  onClick={() => checkOut.mutate()}
+                  disabled={checkOut.isPending}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  {checkOut.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4" />
+                  )}
+                  Check Out
+                </Button>
+              </div>
+            )}
+
+            {/* State 1: Not checked in yet */}
+            {!todayAtt?.checkIn && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  You haven&apos;t checked in yet today.
+                </p>
+                <Button
+                  onClick={() => checkIn.mutate()}
+                  disabled={checkIn.isPending}
+                  className="gap-2"
+                >
+                  {checkIn.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogIn className="h-4 w-4" />
+                  )}
+                  Check In
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Attendance History header with period navigation (employee) */}
+      {!isAdmin && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Attendance History
+          </h2>
+          {!dateRange && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setWeekOffset((w) => w - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground min-w-[160px] text-center">
+                {format(currentWeekStart, "MMM d")} – {format(currentWeekEnd, "MMM d, yyyy")}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={isCurrentWeek}
+                onClick={() => setWeekOffset((w) => w + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              {!isCurrentWeek && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setWeekOffset(0)}
+                >
+                  This Week
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Filters */}
@@ -235,10 +294,9 @@ export default function AttendancePage() {
           </SelectContent>
         </Select>
 
-        {/* Date range picker */}
         <DatePickerWithRange
           date={dateRange}
-          setDate={setDateRange}
+          setDate={(d) => { setDateRange(d); if (!d) setWeekOffset(0); }}
           placeholder="Filter by date range"
           triggerClassName="w-[240px]"
         />
@@ -270,7 +328,7 @@ export default function AttendancePage() {
               description={
                 statusFilter !== "ALL" || dateRange
                   ? "Try adjusting your filters"
-                  : "Attendance records will appear here once employees check in"
+                  : "Attendance records will appear here once you check in"
               }
             />
           ) : (

@@ -37,17 +37,31 @@ enum EmploymentStatus {
   TERMINATED
 }
 
+// ─── Company (Tenant) ────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  initials  String   // e.g. "DF" from "Dayflow"
+  logoUrl   String?  @map("logo_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("company")
+}
+
 // ─── User (Auth) ──────────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  employeeId   String   @unique @map("employee_id")
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role     @default(EMPLOYEE)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(cuid())
+  employeeId         String   @unique @map("employee_id")
+  email              String   @unique
+  passwordHash       String   @map("password_hash")
+  role               Role     @default(EMPLOYEE)
+  isActive           Boolean  @default(true) @map("is_active")
+  mustChangePassword Boolean  @default(false) @map("must_change_password")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
   employee       Employee?

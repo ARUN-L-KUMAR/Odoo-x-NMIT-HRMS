@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth, requireAdmin, canAccessEmployee } from "@/lib/auth/permissions";
+import { requireAuth, requireAdmin } from "@/lib/auth/permissions";
 import { createEmployeeSchema } from "@/lib/validations";
 import { hashPassword } from "@/lib/auth/password";
 import { errorResponse } from "@/lib/utils";
@@ -27,11 +27,64 @@ const employeeSelect = {
       employeeId: true,
       email: true,
       role: true,
+      mustChangePassword: true,
     },
   },
 };
 
-// GET /api/employees — admin: all, employee: own
+/**
+ * Generate employee Login ID:
+ * [CompanyInitials][FirstName2][LastName2][JoinYear][4-digit serial]
+ * Example: DFJODO20240001
+ */
+async function generateEmployeeLoginId(
+  firstName: string,
+  lastName: string,
+  joiningDate?: string
+): Promise<string> {
+  // Get company initials from DB
+  const company = await prisma.company.findFirst({ select: { initials: true } });
+  const initials = company?.initials || "DF";
+
+  const fn2 = firstName.substring(0, 2).toUpperCase().replace(/[^A-Z]/g, "X");
+  const ln2 = lastName.substring(0, 2).toUpperCase().replace(/[^A-Z]/g, "X");
+  const year = joiningDate
+    ? new Date(joiningDate).getFullYear().toString()
+    : new Date().getFullYear().toString();
+  const prefix = `${initials}${fn2}${ln2}${year}`;
+
+  const existing = await prisma.user.findMany({
+    where: { employeeId: { startsWith: prefix } },
+    select: { employeeId: true },
+    orderBy: { employeeId: "desc" },
+  });
+
+  let serial = 1;
+  if (existing.length > 0) {
+    const last = existing[0].employeeId;
+    const lastSerial = parseInt(last.slice(prefix.length), 10);
+    if (!isNaN(lastSerial)) serial = lastSerial + 1;
+  }
+
+  return `${prefix}${serial.toString().padStart(4, "0")}`;
+}
+
+/**
+ * Generate a secure temporary password.
+ * Format: [Uppercase][6 random chars][Number][Symbol]
+ */
+function generateTempPassword(): string {
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const symbols = "@#$!";
+  const rand = (chars: string) => chars[Math.floor(Math.random() * chars.length)];
+
+  const base = Array.from({ length: 5 }, () => rand(lower)).join("");
+  return `${rand(upper)}${base}${rand(digits)}${rand(symbols)}`;
+}
+
+// GET /api/employees — admin: all employees, employee: all (for directory)
 export async function GET(req: NextRequest) {
   try {
     const session = await requireAuth();
@@ -41,79 +94,84 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const isAdmin = session.user.role === Role.ADMIN;
 
-    if (!isAdmin) {
-      // Employee can only see their own record
-      const employee = await prisma.employee.findUnique({
-        where: { userId: session.user.id },
-        select: employeeSelect,
-      });
-      return Response.json({ success: true, data: employee ? [employee] : [], message: "OK" });
-    }
-
     const where: any = {};
     if (department) where.department = department;
-    if (status) where.employmentStatus = status;
+    if (status && isAdmin) where.employmentStatus = status;
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: "insensitive" } },
         { lastName: { contains: search, mode: "insensitive" } },
         { designation: { contains: search, mode: "insensitive" } },
         { user: { employeeId: { contains: search, mode: "insensitive" } } },
-        { user: { email: { contains: search, mode: "insensitive" } } },
+        ...(isAdmin
+          ? [{ user: { email: { contains: search, mode: "insensitive" } } }]
+          : []),
       ];
     }
 
     const employees = await prisma.employee.findMany({
       where,
       select: employeeSelect,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     });
 
     return Response.json({ success: true, data: employees, message: "OK" });
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED") {
-      return Response.json({ success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } }, { status: 401 });
+      return Response.json(
+        { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
+        { status: 401 }
+      );
     }
     console.error("[EMPLOYEES_GET]", error);
-    return Response.json({ success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } }, { status: 500 });
+    return Response.json(
+      { success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } },
+      { status: 500 }
+    );
   }
 }
 
 // POST /api/employees — admin only
+// Auto-generates Login ID and temporary password; returns credentials to admin
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     const body = await req.json();
-    const parsed = createEmployeeSchema.safeParse(body);
 
-    if (!parsed.success) {
-      return errorResponse("VALIDATION_ERROR", "Invalid data", parsed.error.flatten().fieldErrors as Record<string, string[]>, 422);
+    // Remove employeeId and password from body — system generates them
+    const { firstName, lastName, email, phone, designation, department, joiningDate, employmentStatus } = body;
+
+    // Basic validation
+    if (!firstName || !lastName || !email) {
+      return errorResponse("VALIDATION_ERROR", "firstName, lastName, and email are required", {}, 422);
     }
 
-    const { employeeId, email, password, firstName, lastName, phone, designation, department, joiningDate, employmentStatus } = parsed.data;
-
-    const existing = await prisma.user.findFirst({ where: { OR: [{ email }, { employeeId }] } });
+    const existing = await prisma.user.findFirst({ where: { email } });
     if (existing) {
-      return errorResponse("CONFLICT", "Email or Employee ID already exists", {}, 409);
+      return errorResponse("CONFLICT", "Email already exists", { email: ["Email in use"] }, 409);
     }
 
-    const passwordHash = await hashPassword(password);
+    // Auto-generate Login ID and temp password
+    const loginId = await generateEmployeeLoginId(firstName, lastName, joiningDate);
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
 
     const user = await prisma.user.create({
       data: {
-        employeeId,
+        employeeId: loginId,
         email,
         passwordHash,
         role: Role.EMPLOYEE,
+        mustChangePassword: true, // force password change on first login
         employee: {
           create: {
             firstName,
             lastName,
-            phone,
-            designation,
-            department,
+            phone: phone || null,
+            designation: designation || null,
+            department: department || null,
             joiningDate: joiningDate ? new Date(joiningDate) : undefined,
-            employmentStatus: employmentStatus as any,
+            employmentStatus: employmentStatus || "ACTIVE",
           },
         },
       },
@@ -123,20 +181,47 @@ export async function POST(req: NextRequest) {
     // Log activity
     await prisma.activityLog.create({
       data: {
-        userId: user.id,
+        userId: session.user.id,
         action: "EMPLOYEE_CREATED",
         entityType: "employee",
         entityId: user.employee?.id,
-        description: `Employee ${firstName} ${lastName} (${employeeId}) created`,
+        description: `Employee ${firstName} ${lastName} (${loginId}) created by admin`,
       },
     });
 
-    return Response.json({ success: true, data: user.employee, message: "Employee created" }, { status: 201 });
+    return Response.json(
+      {
+        success: true,
+        data: {
+          employee: user.employee,
+          // Return generated credentials so admin can share with employee
+          credentials: {
+            loginId,
+            tempPassword,
+            email,
+          },
+        },
+        message: "Employee created",
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
-      return Response.json({ success: false, error: { code: error.message, message: error.message === "UNAUTHORIZED" ? "Not authenticated" : "Forbidden" } }, { status: error.message === "UNAUTHORIZED" ? 401 : 403 });
+      return Response.json(
+        {
+          success: false,
+          error: {
+            code: error.message,
+            message: error.message === "UNAUTHORIZED" ? "Not authenticated" : "Forbidden",
+          },
+        },
+        { status: error.message === "UNAUTHORIZED" ? 401 : 403 }
+      );
     }
     console.error("[EMPLOYEES_POST]", error);
-    return Response.json({ success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } }, { status: 500 });
+    return Response.json(
+      { success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } },
+      { status: 500 }
+    );
   }
 }

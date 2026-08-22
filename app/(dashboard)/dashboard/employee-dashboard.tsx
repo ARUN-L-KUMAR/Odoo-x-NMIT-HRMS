@@ -5,18 +5,19 @@ import { format } from "date-fns";
 import {
   Clock,
   CalendarDays,
-  Wallet,
   Timer,
   LogIn,
   LogOut,
   Loader2,
   TrendingUp,
   CheckCircle2,
+  User,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/shared/stat-card";
+import Link from "next/link";
 import {
   useEmployeeDashboard,
   useCheckIn,
@@ -26,7 +27,6 @@ import {
 import {
   formatTime,
   formatWorkedTime,
-  formatCurrency,
   formatRelative,
 } from "@/lib/utils";
 import { ATTENDANCE_STATUS_CONFIG } from "@/lib/constants";
@@ -56,8 +56,8 @@ export default function EmployeeDashboardPage() {
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-48 mt-2" />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
             <Card key={i}>
               <CardContent className="p-5">
                 <Skeleton className="h-4 w-16 mb-2" />
@@ -71,7 +71,6 @@ export default function EmployeeDashboardPage() {
     );
   }
 
-  const salary = data?.salary;
   const todayAttendance = todayAtt ?? data?.todayAttendance;
   const summary = data?.attendanceSummary;
 
@@ -122,8 +121,8 @@ export default function EmployeeDashboardPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards — no salary (admin-only per Excalidraw spec) */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Today"
           value={todayAttendance?.status ? ATTENDANCE_STATUS_CONFIG[todayAttendance.status].label : "Not yet"}
@@ -148,18 +147,11 @@ export default function EmployeeDashboardPage() {
           iconBg="bg-purple-100 dark:bg-purple-900/30"
           description={data?.leaveBalances?.[0]?.leaveTypeName || "Paid Leave"}
         />
-        <StatCard
-          label="Net Salary"
-          value={salary ? formatCurrency(Number(salary.netSalary)) : "—"}
-          icon={Wallet}
-          iconColor="text-amber-600"
-          iconBg="bg-amber-100 dark:bg-amber-900/30"
-          description="Per month"
-        />
       </div>
 
       {/* Bottom Row */}
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Attendance Overview */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -199,33 +191,79 @@ export default function EmployeeDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data?.recentActivity && data.recentActivity.length > 0 ? (
-              <div className="space-y-4">
-                {data.recentActivity.slice(0, 8).map((activity: ActivityLog) => (
-                  <div key={activity.id} className="flex gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm leading-snug">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatRelative(activity.createdAt)}
-                      </p>
+        {/* Sidebar: Quick Actions + Recent Activity */}
+        <div className="space-y-4">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button
+                className="w-full justify-start gap-2"
+                size="sm"
+                onClick={() => checkIn.mutate()}
+                disabled={!canCheckIn || checkIn.isPending}
+              >
+                {checkIn.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+                Check In
+              </Button>
+              <Button
+                className="w-full justify-start gap-2"
+                size="sm"
+                variant="outline"
+                onClick={() => checkOut.mutate()}
+                disabled={!canCheckOut || checkOut.isPending}
+              >
+                {checkOut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                Check Out
+              </Button>
+              <Link
+                href="/time-off"
+                className={buttonVariants({ variant: "outline", size: "sm", className: "w-full justify-start gap-2" })}
+              >
+                <CalendarDays className="h-4 w-4" />
+                Request Time Off
+              </Link>
+              <Link
+                href="/profile"
+                className={buttonVariants({ variant: "outline", size: "sm", className: "w-full justify-start gap-2" })}
+              >
+                <User className="h-4 w-4" />
+                My Profile
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data?.recentActivity && data.recentActivity.length > 0 ? (
+                <div className="space-y-4">
+                  {data.recentActivity.slice(0, 6).map((activity: ActivityLog) => (
+                    <div key={activity.id} className="flex gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm leading-snug">{activity.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatRelative(activity.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No recent activity</p>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

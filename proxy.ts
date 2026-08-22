@@ -3,10 +3,10 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
 
 // Public routes — no auth required
-const PUBLIC_ROUTES = ["/login", "/register", "/api/auth"];
+const PUBLIC_ROUTES = ["/login", "/register", "/api/auth", "/change-password"];
 
 // Admin-only routes
-const ADMIN_ROUTES = ["/employees", "/reports"];
+const ADMIN_ROUTES = ["/reports"];
 
 export default auth(async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -35,6 +35,11 @@ export default auth(async function middleware(req: NextRequest) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Force password change on first login
+  if (session.user?.mustChangePassword && pathname !== "/change-password") {
+    return NextResponse.redirect(new URL("/change-password", req.url));
   }
 
   // Admin-only route protection

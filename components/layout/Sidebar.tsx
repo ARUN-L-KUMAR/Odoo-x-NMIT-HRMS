@@ -10,8 +10,6 @@ import {
   CalendarDays,
   DollarSign,
   BarChart3,
-  User,
-  Settings,
   LogOut,
   ChevronLeft,
 } from "lucide-react";
@@ -31,17 +29,17 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   adminOnly?: boolean;
-  employeeOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Employees", href: "/employees", icon: Users, adminOnly: true },
+  // Employees: visible to all — employees see directory, admins see management table
+  { label: "Employees", href: "/employees", icon: Users },
   { label: "Attendance", href: "/attendance", icon: Clock },
-  { label: "Leave", href: "/leave", icon: CalendarDays },
-  { label: "Payroll", href: "/payroll", icon: DollarSign },
+  { label: "Time Off", href: "/time-off", icon: CalendarDays },
+  // Admin-only modules
+  { label: "Payroll", href: "/payroll", icon: DollarSign, adminOnly: true },
   { label: "Reports", href: "/reports", icon: BarChart3, adminOnly: true },
-  { label: "My Profile", href: "/profile", icon: User, employeeOnly: true },
 ];
 
 interface SidebarProps {
@@ -58,7 +56,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
   const filteredNav = NAV_ITEMS.filter((item) => {
     if (item.adminOnly && !isAdmin) return false;
-    if (item.employeeOnly && isAdmin) return false;
     return true;
   });
 
@@ -135,20 +132,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
       {/* User section */}
       <div className="flex-shrink-0 border-t border-sidebar-border p-2 space-y-0.5">
-        {/* Profile link */}
-        {isAdmin && (
-          <Link
-            href="/profile"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all",
-              "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-            )}
-          >
-            <Settings className="h-4 w-4 flex-shrink-0 text-sidebar-foreground/50" />
-            {!collapsed && <span>Settings</span>}
-          </Link>
-        )}
-
         {/* Logout */}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}

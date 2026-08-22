@@ -1,10 +1,19 @@
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/permissions";
+import { Role } from "@/lib/enums";
 
-// GET /api/payroll/me
+// GET /api/payroll/me — Admin only (salary info is admin-only per Excalidraw spec)
 export async function GET() {
   try {
     const session = await requireAuth();
+
+    // Salary information is admin-only
+    if (session.user.role !== Role.ADMIN) {
+      return Response.json(
+        { success: false, error: { code: "FORBIDDEN", message: "Salary information is restricted to administrators" } },
+        { status: 403 }
+      );
+    }
 
     if (!session.user.employeeDbId) {
       return Response.json(

@@ -68,10 +68,11 @@ export const employeeApi = {
   getById: (id: string) => fetchApi<Employee>(`/api/employees/${id}`),
 
   create: (data: any) =>
-    fetchApi<Employee>("/api/employees", {
+    fetchApi<{ employee: Employee; credentials: { loginId: string; tempPassword: string; email: string } }>("/api/employees", {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
 
   update: (id: string, data: any) =>
     fetchApi<Employee>(`/api/employees/${id}`, {

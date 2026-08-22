@@ -41,9 +41,7 @@ const REPORT_CARDS = [
 ];
 
 export default function ReportsPage() {
-  const { data, isLoading } = useAdminDashboard();
-
-  const stats = data?.data;
+  const { data: stats, isLoading } = useAdminDashboard();
 
   return (
     <div className="space-y-6">

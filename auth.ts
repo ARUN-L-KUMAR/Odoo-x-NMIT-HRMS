@@ -4,9 +4,10 @@ import { prisma } from "@/lib/db";
 import { comparePassword } from "@/lib/auth/password";
 import { z } from "zod";
 
+// Accept either email OR employeeId (Login ID) in the identifier field
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  identifier: z.string().min(1, "Login ID or Email is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -14,17 +15,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Login ID or Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+        const { identifier, password } = parsed.data;
 
-        const user = await prisma.user.findUnique({
-          where: { email },
+        // Find by email OR employeeId (Login ID)
+        const isEmail = identifier.includes("@");
+        const user = await prisma.user.findFirst({
+          where: isEmail
+            ? { email: identifier }
+            : { employeeId: identifier },
           include: {
             employee: {
               select: {
@@ -49,6 +54,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           employeeId: user.employeeId,
           email: user.email,
           role: user.role,
+          mustChangePassword: user.mustChangePassword,
           name: user.employee
             ? `${user.employee.firstName} ${user.employee.lastName}`
             : user.employeeId,
@@ -70,6 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.employeeDbId = (user as any).employeeDbId;
         token.department = (user as any).department;
         token.designation = (user as any).designation;
+        token.mustChangePassword = (user as any).mustChangePassword;
       }
       return token;
     },
@@ -81,6 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.employeeDbId = token.employeeDbId as string | null;
         session.user.department = token.department as string | null;
         session.user.designation = token.designation as string | null;
+        session.user.mustChangePassword = token.mustChangePassword as boolean;
       }
       return session;
     },

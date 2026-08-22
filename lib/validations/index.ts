@@ -2,28 +2,47 @@ import { z } from "zod";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+// Login — accepts email OR Login ID (employeeId)
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  identifier: z.string().min(1, "Login ID or Email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
-export const registerSchema = z.object({
-  employeeId: z
-    .string()
-    .min(3, "Employee ID must be at least 3 characters")
-    .regex(/^[A-Z0-9]+$/, "Employee ID must be uppercase letters and numbers"),
-  email: z.string().email("Invalid email address"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Must contain at least one number"),
-  role: z.enum(["ADMIN", "EMPLOYEE"]).default("EMPLOYEE"),
-});
+// Company Setup — first-time onboarding, creates the Admin account
+export const companySetupSchema = z
+  .object({
+    companyName: z.string().min(2, "Company name is required"),
+    name: z.string().min(2, "Your full name is required"),
+    email: z.string().email("Invalid email address"),
+    phone: z.string().optional(),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Must contain at least one number"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
-export type RegisterInput = z.input<typeof registerSchema>;
-export type RegisterOutput = z.output<typeof registerSchema>;
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Must contain at least one number"),
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 // ─── Employee ─────────────────────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@ declare module "next-auth" {
       employeeDbId: string | null;
       department: string | null;
       designation: string | null;
+      mustChangePassword: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -58,6 +59,8 @@ export interface Employee {
     email: string;
     role: Role;
   };
+  // Admin-only, returned when fetched as admin
+  salaryStructure?: SalaryStructure | null;
 }
 
 // ─── Attendance ───────────────────────────────────────────────────────────────

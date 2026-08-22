@@ -1,11 +1,30 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth, canAccessEmployee } from "@/lib/auth/permissions";
+import { requireAuth } from "@/lib/auth/permissions";
 import { updateEmployeeSchema, selfUpdateEmployeeSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/utils";
 import { Role } from "@/lib/enums";
 
-const employeeSelect = {
+// Public fields visible to all authenticated users
+const publicEmployeeSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  designation: true,
+  department: true,
+  joiningDate: true,
+  employmentStatus: true,
+  profileImage: true,
+  user: {
+    select: {
+      id: true,
+      employeeId: true,
+    },
+  },
+};
+
+// Full fields for admin only
+const adminEmployeeSelect = {
   id: true,
   firstName: true,
   lastName: true,
@@ -29,7 +48,11 @@ const employeeSelect = {
       role: true,
     },
   },
+  salaryStructure: true,
 };
+
+// For PATCH operations
+const employeeSelect = adminEmployeeSelect;
 
 // GET /api/employees/:id
 export async function GET(
@@ -41,13 +64,9 @@ export async function GET(
     const { id } = await params;
     const isAdmin = session.user.role === Role.ADMIN;
 
-    if (!isAdmin && !canAccessEmployee(session.user.role, session.user.employeeDbId, id)) {
-      return Response.json({ success: false, error: { code: "FORBIDDEN", message: "Access denied" } }, { status: 403 });
-    }
-
     const employee = await prisma.employee.findUnique({
       where: { id },
-      select: employeeSelect,
+      select: isAdmin ? adminEmployeeSelect : publicEmployeeSelect,
     });
 
     if (!employee) {
@@ -72,8 +91,8 @@ export async function PATCH(
     const { id } = await params;
     const isAdmin = session.user.role === Role.ADMIN;
 
-    if (!isAdmin && !canAccessEmployee(session.user.role, session.user.employeeDbId, id)) {
-      return Response.json({ success: false, error: { code: "FORBIDDEN", message: "Access denied" } }, { status: 403 });
+    if (!isAdmin && session.user.employeeDbId !== id) {
+      return Response.json({ success: false, error: { code: "FORBIDDEN", message: "You can only update your own profile" } }, { status: 403 });
     }
 
     const body = await req.json();
