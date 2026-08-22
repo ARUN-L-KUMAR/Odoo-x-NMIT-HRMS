@@ -55,11 +55,14 @@ export default function LoginPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-1">
-        <div className="flex items-center gap-2 mb-6 lg:hidden">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
-            D
+        <div className="flex items-center gap-2.5 mb-6 lg:hidden">
+          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-xs">
+            HRMS
           </div>
-          <span className="font-semibold text-lg">Dayflow</span>
+          <div>
+            <h1 className="font-bold text-base leading-tight">Human Resource Management System</h1>
+            <p className="text-[11px] text-muted-foreground">HRMS Portal</p>
+          </div>
         </div>
         <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
         <p className="text-muted-foreground text-sm">
@@ -73,28 +76,14 @@ export default function LoginPage() {
           Quick Sign-In (Demo Credentials)
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => fillDemo("superAdmin")}
-            className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/40 transition-all text-left group shadow-2xs"
-          >
-            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:underline">
-              Super Admin
-            </span>
-            <span className="text-[11px] text-muted-foreground font-mono truncate w-full">
-              {DEMO_ACCOUNTS.superAdmin.email}
-            </span>
-            <span className="text-[10px] text-muted-foreground font-mono">
-              {DEMO_ACCOUNTS.superAdmin.password}
-            </span>
-          </button>
+          {/* 1. Org Admin */}
           <button
             type="button"
             onClick={() => fillDemo("admin")}
             className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/40 transition-all text-left group shadow-2xs"
           >
             <span className="text-xs font-bold text-primary group-hover:underline">
-              Tenant Admin
+              Org Admin
             </span>
             <span className="text-[11px] text-muted-foreground font-mono truncate w-full">
               {DEMO_ACCOUNTS.admin.email}
@@ -103,6 +92,8 @@ export default function LoginPage() {
               {DEMO_ACCOUNTS.admin.password}
             </span>
           </button>
+
+          {/* 2. Employee */}
           <button
             type="button"
             onClick={() => fillDemo("employee")}
@@ -116,6 +107,23 @@ export default function LoginPage() {
             </span>
             <span className="text-[10px] text-muted-foreground font-mono">
               {DEMO_ACCOUNTS.employee.password}
+            </span>
+          </button>
+
+          {/* 3. Super Admin */}
+          <button
+            type="button"
+            onClick={() => fillDemo("superAdmin")}
+            className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/40 transition-all text-left group shadow-2xs"
+          >
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:underline">
+              Super Admin
+            </span>
+            <span className="text-[11px] text-muted-foreground font-mono truncate w-full">
+              {DEMO_ACCOUNTS.superAdmin.email}
+            </span>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {DEMO_ACCOUNTS.superAdmin.password}
             </span>
           </button>
         </div>
