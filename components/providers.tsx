@@ -23,7 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-      <SessionProvider>
+      <SessionProvider basePath="/api/auth">
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             {children}
