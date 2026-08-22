@@ -55,13 +55,28 @@ export default function LoginPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-1">
-        <div className="flex items-center gap-2.5 mb-6 lg:hidden">
-          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-xs">
-            HRMS
+        <div className="flex items-center gap-3 mb-6 lg:hidden">
+          <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-sm shrink-0">
+            <svg
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
           </div>
           <div>
-            <h1 className="font-bold text-base leading-tight">Human Resource Management System</h1>
-            <p className="text-[11px] text-muted-foreground">HRMS Portal</p>
+            <h1 className="font-extrabold text-base leading-tight tracking-tight">Human Resource Management System</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono font-bold text-[10px]">HRMS</span>
+              <span className="text-[11px] text-muted-foreground">Enterprise Portal</span>
+            </div>
           </div>
         </div>
         <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
