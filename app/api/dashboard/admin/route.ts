@@ -3,24 +3,28 @@ import { requireAdmin } from "@/lib/auth/permissions";
 import { startOfDay, subDays, format } from "date-fns";
 import { AttendanceStatus } from "@/lib/enums";
 
-// GET /api/dashboard/admin
+// GET /api/dashboard/admin — Super Admin (Global Platform Stats) or Tenant Admin (Company Stats)
 export async function GET() {
   try {
     const session = await requireAdmin();
 
     const today = startOfDay(new Date());
+    const isSuperAdmin = session.user.role === "SUPER_ADMIN";
     const companyId = session.user.companyId;
-    const empFilter = companyId ? { companyId } : {};
+    const empFilter = (!isSuperAdmin && companyId) ? { companyId } : {};
 
     const [
       totalEmployees,
+      totalOrganizations,
       todayAttendance,
       pendingLeaves,
       recentEmployees,
       recentActivity,
       departmentGroups,
+      organizationsList,
     ] = await Promise.all([
       prisma.employee.count({ where: { employmentStatus: "ACTIVE", ...empFilter } }),
+      prisma.company.count(),
       prisma.attendance.findMany({
         where: {
           attendanceDate: today,
@@ -35,21 +39,31 @@ export async function GET() {
         },
         include: {
           employee: {
-            select: { id: true, firstName: true, lastName: true, profileImage: true, department: true },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profileImage: true,
+              department: true,
+              company: { select: { name: true, initials: true } },
+            },
           },
           leaveType: true,
         },
         orderBy: { createdAt: "asc" },
-        take: 5,
+        take: 6,
       }),
       prisma.employee.findMany({
         where: empFilter,
         orderBy: { createdAt: "desc" },
-        take: 5,
-        include: { user: { select: { employeeId: true, email: true, role: true } } },
+        take: 6,
+        include: {
+          company: { select: { id: true, name: true, initials: true } },
+          user: { select: { employeeId: true, email: true, role: true } },
+        },
       }),
       prisma.activityLog.findMany({
-        where: companyId ? { companyId } : {},
+        where: (!isSuperAdmin && companyId) ? { companyId } : {},
         orderBy: { createdAt: "desc" },
         take: 10,
         include: {
@@ -61,6 +75,18 @@ export async function GET() {
         _count: { id: true },
         where: { employmentStatus: "ACTIVE", department: { not: null }, ...empFilter },
       }),
+      isSuperAdmin
+        ? prisma.company.findMany({
+            select: {
+              id: true,
+              name: true,
+              initials: true,
+              logoUrl: true,
+              _count: { select: { employees: true } },
+            },
+            orderBy: { name: "asc" },
+          })
+        : Promise.resolve([]),
     ]);
 
     const presentToday = todayAttendance.filter((a: { status: string }) => a.status === AttendanceStatus.PRESENT).length;
@@ -96,6 +122,8 @@ export async function GET() {
     return Response.json({
       success: true,
       data: {
+        isSuperAdmin,
+        totalOrganizations,
         totalEmployees,
         presentToday,
         absentToday,
@@ -106,6 +134,13 @@ export async function GET() {
         recentActivity,
         attendanceTrend,
         departmentDistribution,
+        organizationsList: organizationsList.map((org: any) => ({
+          id: org.id,
+          name: org.name,
+          initials: org.initials,
+          logoUrl: org.logoUrl,
+          employeeCount: org._count.employees,
+        })),
       },
       message: "OK",
     });

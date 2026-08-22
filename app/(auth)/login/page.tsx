@@ -44,9 +44,8 @@ export default function LoginPage() {
     router.refresh();
   };
 
-  const fillDemo = (type: "admin" | "employee") => {
+  const fillDemo = (type: "superAdmin" | "admin" | "employee") => {
     const account = DEMO_ACCOUNTS[type];
-    // Use email for demo — both work
     setValue("identifier", account.email);
     setValue("password", account.password);
     setError(null);
@@ -71,36 +70,51 @@ export default function LoginPage() {
       {/* Demo accounts */}
       <div className="rounded-xl border border-dashed p-4 space-y-3 bg-muted/30">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Demo Accounts
+          Quick Sign-In (Demo Credentials)
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => fillDemo("superAdmin")}
+            className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/40 transition-all text-left group shadow-2xs"
+          >
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:underline">
+              Super Admin
+            </span>
+            <span className="text-[11px] text-muted-foreground font-mono truncate w-full">
+              {DEMO_ACCOUNTS.superAdmin.email}
+            </span>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {DEMO_ACCOUNTS.superAdmin.password}
+            </span>
+          </button>
           <button
             type="button"
             onClick={() => fillDemo("admin")}
-            className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/30 transition-all text-left group"
+            className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/40 transition-all text-left group shadow-2xs"
           >
-            <span className="text-xs font-semibold text-primary group-hover:text-primary">
-              Admin
+            <span className="text-xs font-bold text-primary group-hover:underline">
+              Tenant Admin
             </span>
-            <span className="text-[11px] text-muted-foreground font-mono">
+            <span className="text-[11px] text-muted-foreground font-mono truncate w-full">
               {DEMO_ACCOUNTS.admin.email}
             </span>
-            <span className="text-[11px] text-muted-foreground font-mono">
+            <span className="text-[10px] text-muted-foreground font-mono">
               {DEMO_ACCOUNTS.admin.password}
             </span>
           </button>
           <button
             type="button"
             onClick={() => fillDemo("employee")}
-            className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/30 transition-all text-left group"
+            className="flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-primary/40 transition-all text-left group shadow-2xs"
           >
-            <span className="text-xs font-semibold text-primary group-hover:text-primary">
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:underline">
               Employee
             </span>
-            <span className="text-[11px] text-muted-foreground font-mono">
+            <span className="text-[11px] text-muted-foreground font-mono truncate w-full">
               {DEMO_ACCOUNTS.employee.email}
             </span>
-            <span className="text-[11px] text-muted-foreground font-mono">
+            <span className="text-[10px] text-muted-foreground font-mono">
               {DEMO_ACCOUNTS.employee.password}
             </span>
           </button>

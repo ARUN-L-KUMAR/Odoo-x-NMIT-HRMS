@@ -148,12 +148,15 @@ function CredentialsDialog({
 
 export default function EmployeesPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const userRole = session?.user?.role?.toUpperCase();
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isAdmin = userRole === "ADMIN" || isSuperAdmin;
   const router = useRouter();
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("ALL");
+  const [companyFilter, setCompanyFilter] = useState("ALL");
   const [createOpen, setCreateOpen] = useState(false);
   const [credentials, setCredentials] = useState<GeneratedCredentials | null>(null);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
@@ -164,9 +167,20 @@ export default function EmployeesPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
 
+  const { data: orgsList = [] } = useQuery({
+    queryKey: ["organizations", "all"],
+    queryFn: async () => {
+      const res = await fetch("/api/organization");
+      const json = await res.json();
+      return json?.data?.allOrganizations || [];
+    },
+    enabled: isSuperAdmin,
+  });
+
   const { data: employees, isLoading } = useEmployees({
     search: search || undefined,
     department: department !== "ALL" ? department : undefined,
+    companyId: companyFilter !== "ALL" ? companyFilter : undefined,
   });
 
   const { data: attendanceMap = {}, isLoading: attLoading } = useTodayAllAttendance();
@@ -201,6 +215,7 @@ export default function EmployeesPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent bg-muted/40">
                 <TableHead>Employee</TableHead>
+                {isSuperAdmin && <TableHead>Organization</TableHead>}
                 <TableHead>Login ID</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Designation</TableHead>
@@ -213,14 +228,14 @@ export default function EmployeesPage() {
               {isLoading
                 ? [1, 2, 3, 4].map((i) => (
                     <TableRow key={i}>
-                      {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                      {[1, 2, 3, 4, 5, 6, 7, ...(isSuperAdmin ? [8] : [])].map((j) => (
                         <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>
                       ))}
                     </TableRow>
                   ))
                 : (!employees || employees.length === 0) ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-sm">
+                      <TableCell colSpan={isSuperAdmin ? 8 : 7} className="h-32 text-center text-muted-foreground text-sm">
                         {search ? "No employees match your search" : "No employees found."}
                       </TableCell>
                     </TableRow>
@@ -261,6 +276,13 @@ export default function EmployeesPage() {
                               </div>
                             </div>
                           </TableCell>
+                          {isSuperAdmin && (
+                            <TableCell>
+                              <span className="font-semibold text-xs bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                                {emp.company?.name || "System"}
+                              </span>
+                            </TableCell>
+                          )}
                           <TableCell>
                             <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded font-medium">
                               {emp.user?.employeeId}
@@ -371,6 +393,7 @@ export default function EmployeesPage() {
             employees={employees ?? []}
             isLoading={isLoading || attLoading}
             attendanceStatusMap={attendanceMap}
+            showCompany={isSuperAdmin}
             onCardClick={(id) => router.push(`/employees/${id}`)}
             emptyMessage={search ? "No employees match your search" : "No team members yet"}
           />
@@ -484,6 +507,24 @@ export default function EmployeesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input id="employee-search-admin" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employees..." className="pl-9 h-9" />
         </div>
+
+        {/* Organization Filter for Super Admin */}
+        {isSuperAdmin && orgsList && orgsList.length > 0 && (
+          <Select value={companyFilter} onValueChange={(v) => setCompanyFilter(v ?? "ALL")}>
+            <SelectTrigger className="w-48 h-9 border-primary/30 bg-primary/5">
+              <SelectValue placeholder="All Organizations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Organizations ({orgsList.length})</SelectItem>
+              {orgsList.map((org: any) => (
+                <SelectItem key={org.id} value={org.id}>
+                  {org.name} ({org.employeeCount || 0})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         <Select value={department} onValueChange={(v) => setDepartment(v ?? "ALL")}>
           <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Department" /></SelectTrigger>
           <SelectContent>
@@ -536,6 +577,7 @@ export default function EmployeesPage() {
           employees={employees ?? []}
           isLoading={isLoading || attLoading}
           attendanceStatusMap={attendanceMap}
+          showCompany={isSuperAdmin}
           onCardClick={(id) => router.push(`/employees/${id}`)}
           emptyMessage={search ? "No employees match your search" : "Add your first employee to get started"}
         />

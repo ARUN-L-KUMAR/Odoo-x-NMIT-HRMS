@@ -10,6 +10,7 @@ import {
   CalendarDays,
   DollarSign,
   BarChart3,
+  Building2,
   LogOut,
   ChevronLeft,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Employees", href: "/employees", icon: Users },
   { label: "Attendance", href: "/attendance", icon: Clock },
   { label: "Time Off", href: "/time-off", icon: CalendarDays },
+  { label: "Organization", href: "/organization", icon: Building2 },
   // Admin-only modules
   { label: "Payroll", href: "/payroll", icon: DollarSign, adminOnly: true },
   { label: "Reports", href: "/reports", icon: BarChart3, adminOnly: true },
@@ -71,7 +73,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     >
       {/* Logo / Organization Branding */}
       <div className="flex items-center h-14 px-4 border-b border-sidebar-border flex-shrink-0">
-        <div className="flex items-center gap-3 overflow-hidden">
+        <Link href="/organization" className="flex items-center gap-3 overflow-hidden hover:opacity-85 transition-opacity group">
           {companyLogo ? (
             <img
               src={companyLogo}
@@ -79,7 +81,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
               className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border"
             />
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs flex-shrink-0 shadow-xs">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs flex-shrink-0 shadow-xs group-hover:ring-2 ring-primary/30 transition-all">
               {companyInitials}
             </div>
           )}
@@ -93,7 +95,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
               </span>
             </div>
           )}
-        </div>
+        </Link>
         {!collapsed && onToggle && (
           <Button
             variant="ghost"

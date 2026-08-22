@@ -56,11 +56,9 @@ export const authApi = {
 // ─── Employee API ─────────────────────────────────────────────────────────────
 
 export const employeeApi = {
-  getAll: (params?: { search?: string; department?: string; status?: string }) => {
+  getAll: (params?: { search?: string; department?: string; status?: string; companyId?: string }) => {
     const query = new URLSearchParams(
-      Object.fromEntries(
-        Object.entries(params || {}).filter(([, v]) => v != null) as [string, string][]
-      )
+      Object.entries(params || {}).filter(([_, v]) => v !== undefined && v !== "") as [string, string][]
     ).toString();
     return fetchApi<Employee[]>(`/api/employees${query ? `?${query}` : ""}`);
   },

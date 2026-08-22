@@ -73,7 +73,9 @@ import type { Attendance, Employee } from "@/types";
 
 export default function AttendancePage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const userRole = session?.user?.role?.toUpperCase();
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isAdmin = userRole === "ADMIN" || isSuperAdmin;
 
   // ─── ADMIN STATE ────────────────────────────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -803,9 +805,16 @@ export default function AttendancePage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="text-xs font-semibold tracking-tight text-foreground">
-                                  {row.employee.firstName} {row.employee.lastName}
-                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-xs font-semibold tracking-tight text-foreground">
+                                    {row.employee.firstName} {row.employee.lastName}
+                                  </p>
+                                  {isSuperAdmin && (row.employee as any)?.company?.name && (
+                                    <span className="text-[10px] text-primary font-medium bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full">
+                                      {(row.employee as any).company.name}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded">
                                     {row.employee.user?.employeeId}

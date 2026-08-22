@@ -67,7 +67,9 @@ type AdminTab = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 
 export default function TimeOffPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const userRole = session?.user?.role?.toUpperCase();
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isAdmin = userRole === "ADMIN" || isSuperAdmin;
 
   // Employee state
   const [applyOpen, setApplyOpen] = useState(false);
@@ -412,9 +414,16 @@ export default function TimeOffPage() {
                               {getInitials(`${req.employee?.firstName} ${req.employee?.lastName}`)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm font-medium">
-                            {req.employee?.firstName} {req.employee?.lastName}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">
+                              {req.employee?.firstName} {req.employee?.lastName}
+                            </span>
+                            {isSuperAdmin && (req.employee as any)?.company?.name && (
+                              <span className="text-[10px] text-primary font-medium">
+                                {(req.employee as any).company.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{req.leaveType?.name}</TableCell>

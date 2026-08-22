@@ -14,6 +14,8 @@ interface EmployeeCardProps {
   profileImage?: string | null;
   employmentStatus?: string;
   attendanceStatus?: AttendanceStatus;
+  company?: { name: string; initials: string; logoUrl?: string | null } | null;
+  showCompany?: boolean;
   onClick?: () => void;
 }
 
@@ -53,6 +55,8 @@ export function EmployeeCard({
   profileImage,
   employmentStatus = "ACTIVE",
   attendanceStatus = "UNKNOWN",
+  company,
+  showCompany = false,
   onClick,
 }: EmployeeCardProps) {
   const fullName = `${firstName} ${lastName}`.trim();
@@ -99,8 +103,13 @@ export function EmployeeCard({
       </div>
 
       {/* Name + role */}
-      <div className="space-y-0.5 min-w-0 w-full">
+      <div className="space-y-1 min-w-0 w-full">
         <p className="font-semibold text-sm truncate">{fullName}</p>
+        {showCompany && company?.name && (
+          <span className="inline-block text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full truncate max-w-[140px]">
+            {company.name}
+          </span>
+        )}
         {designation && (
           <p className="text-xs text-muted-foreground truncate">{designation}</p>
         )}

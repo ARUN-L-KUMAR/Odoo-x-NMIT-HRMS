@@ -7,13 +7,15 @@ import { LeaveStatus } from "@/lib/enums";
 export async function GET(req: NextRequest) {
   try {
     const session = await requireAuth();
-    const isAdmin = session.user.role === "ADMIN";
+    const isSuperAdmin = session.user.role === "SUPER_ADMIN";
+    const isAdmin = session.user.role === "ADMIN" || isSuperAdmin;
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") as LeaveStatus | null;
     const employeeId = searchParams.get("employeeId");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
+    const filterCompanyId = searchParams.get("companyId");
 
     const where: any = {};
 
@@ -24,8 +26,12 @@ export async function GET(req: NextRequest) {
       }
     } else {
       if (employeeId) where.employeeId = employeeId;
-      if (session.user.companyId) {
-        where.employee = { companyId: session.user.companyId };
+      if (isSuperAdmin) {
+        if (filterCompanyId && filterCompanyId !== "ALL") {
+          where.employee = { ...(where.employee || {}), companyId: filterCompanyId };
+        }
+      } else if (session.user.companyId) {
+        where.employee = { ...(where.employee || {}), companyId: session.user.companyId };
       }
     }
 
@@ -48,6 +54,15 @@ export async function GET(req: NextRequest) {
             profileImage: true,
             department: true,
             designation: true,
+            companyId: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                initials: true,
+                logoUrl: true,
+              },
+            },
           },
         },
         reviewer: { select: { id: true, employeeId: true } },
