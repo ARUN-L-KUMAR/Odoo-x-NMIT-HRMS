@@ -150,8 +150,9 @@ export interface LeaveRequest {
   reviewedAt: string | null;
   adminComment: string | null;
   createdAt: string;
-  employee?: Pick<Employee, "id" | "firstName" | "lastName" | "profileImage" | "department">;
+  employee?: Pick<Employee, "id" | "firstName" | "lastName" | "profileImage" | "department" | "user">;
   leaveType?: LeaveType;
+
   reviewer?: Pick<User, "id" | "employeeId">;
 }
 

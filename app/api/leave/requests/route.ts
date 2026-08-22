@@ -63,10 +63,19 @@ export async function GET(req: NextRequest) {
                 logoUrl: true,
               },
             },
+            user: {
+              select: {
+                id: true,
+                employeeId: true,
+                email: true,
+                role: true,
+              },
+            },
           },
         },
         reviewer: { select: { id: true, employeeId: true } },
       },
+
       orderBy: { createdAt: "desc" },
       take: 100,
     });

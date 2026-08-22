@@ -5,18 +5,11 @@ import { createLeaveSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/utils";
 import { differenceInCalendarDays } from "date-fns";
 
-// POST /api/leave — employee applies for leave
+// POST /api/leave — employee applies for leave (or Admin creates for employee)
 export async function POST(req: NextRequest) {
   try {
     const session = await requireAuth();
-    const employeeId = session.user.employeeDbId;
-
-    if (!employeeId) {
-      return Response.json(
-        { success: false, error: { code: "NOT_FOUND", message: "Employee profile not found" } },
-        { status: 404 }
-      );
-    }
+    const isAdmin = session.user.role === "ADMIN" || (session.user as any)?.role === "SUPER_ADMIN";
 
     const body = await req.json();
     const parsed = createLeaveSchema.safeParse(body);
@@ -30,7 +23,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { leaveTypeId, startDate, endDate, reason } = parsed.data;
+    const { leaveTypeId, startDate, endDate, reason, employeeId: targetEmpId, attachmentUrl } = parsed.data;
+    const employeeId = isAdmin && targetEmpId ? targetEmpId : session.user.employeeDbId;
+
+    if (!employeeId) {
+      return Response.json(
+        { success: false, error: { code: "NOT_FOUND", message: "Employee profile not found" } },
+        { status: 404 }
+      );
+    }
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     const totalDays = differenceInCalendarDays(end, start) + 1;

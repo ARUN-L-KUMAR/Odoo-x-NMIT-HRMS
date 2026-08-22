@@ -143,10 +143,12 @@ export const selfUpdateEmployeeSchema = z.object({
 
 export const createLeaveSchema = z
   .object({
+    employeeId: z.string().optional(),
     leaveTypeId: z.string().min(1, "Leave type is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
-    reason: z.string().min(10, "Please provide a reason (min 10 characters)"),
+    reason: z.string().min(3, "Please provide a reason or note"),
+    attachmentUrl: z.string().optional().nullable(),
   })
   .refine(
     (data) => new Date(data.endDate) >= new Date(data.startDate),
@@ -155,6 +157,7 @@ export const createLeaveSchema = z
       path: ["endDate"],
     }
   );
+
 
 export const leaveReviewSchema = z.object({
   comment: z.string().optional(),

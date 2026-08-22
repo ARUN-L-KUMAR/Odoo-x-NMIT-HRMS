@@ -120,15 +120,18 @@ export const leaveApi = {
   getTypes: () => fetchApi<LeaveType[]>("/api/leave/types"),
 
   create: (data: {
+    employeeId?: string;
     leaveTypeId: string;
     startDate: string;
     endDate: string;
     reason: string;
+    attachmentUrl?: string | null;
   }) =>
     fetchApi<LeaveRequest>("/api/leave", {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
 
   getMine: () => fetchApi<LeaveRequest[]>("/api/leave/me"),
 

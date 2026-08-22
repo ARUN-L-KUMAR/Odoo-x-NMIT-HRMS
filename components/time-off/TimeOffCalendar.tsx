@@ -11,168 +11,269 @@ import {
   addMonths,
   subMonths,
   isSameDay,
+  setMonth,
+  getYear,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Palmtree, Clock, CheckCircle2, XCircle, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-interface TimeOffRequest {
+export interface TimeOffRequestItem {
   id: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | Date;
+  endDate: string | Date;
   status: string;
-  leaveType?: { name: string } | null;
+  reason?: string;
+  leaveType?: { name: string; isPaid?: boolean } | null;
 }
+
+export interface PublicHoliday {
+  date: string; // "yyyy-MM-dd"
+  name: string;
+}
+
+export const PUBLIC_HOLIDAYS_2026: PublicHoliday[] = [
+  { date: "2026-01-14", name: "Kite Festival / Makar Sankranti" },
+  { date: "2026-01-26", name: "Republic Day" },
+  { date: "2026-03-04", name: "Dhuleti / Holi" },
+  { date: "2026-05-01", name: "Labor Day / May Day" },
+  { date: "2026-08-15", name: "Independence Day" },
+  { date: "2026-08-28", name: "Raksha Bandhan (Rakhi)" },
+  { date: "2026-10-02", name: "Gandhi Jayanti" },
+  { date: "2026-11-08", name: "Diwali" },
+  { date: "2026-11-10", name: "New Year / Govardhan Puja" },
+  { date: "2026-11-11", name: "Bhai Duj" },
+  { date: "2026-12-25", name: "Christmas Day" },
+];
 
 interface TimeOffCalendarProps {
-  requests: TimeOffRequest[];
+  requests: TimeOffRequestItem[];
+  onSelectDate?: (date: Date) => void;
+  year?: number;
 }
 
-const STATUS_DOT: Record<string, string> = {
-  PENDING: "bg-amber-400",
-  APPROVED: "bg-emerald-500",
-  REJECTED: "bg-destructive",
-};
+export function TimeOffCalendar({
+  requests,
+  onSelectDate,
+  year = new Date().getFullYear(),
+}: TimeOffCalendarProps) {
+  const [selectedYear, setSelectedYear] = useState(year);
 
-const STATUS_BG: Record<string, string> = {
-  PENDING: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300",
-  APPROVED: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300",
-  REJECTED: "bg-red-50 dark:bg-red-950/40 text-red-400 dark:text-red-400 line-through opacity-60",
-};
-
-export function TimeOffCalendar({ requests }: TimeOffCalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  // Blank cells to align the first day to correct weekday (Mon=0)
-  const startDay = (getDay(monthStart) + 6) % 7; // Mon-based: Mon=0 … Sun=6
-  const blanks = Array(startDay).fill(null);
-
-  // Map each date to its request info
-  const getRequestForDay = (day: Date) => {
+  // Map requests by Date string (yyyy-MM-dd)
+  const getRequestForDay = (day: Date): TimeOffRequestItem | null => {
+    const dayStr = format(day, "yyyy-MM-dd");
     for (const req of requests) {
-      const start = new Date(req.startDate);
-      const end = new Date(req.endDate);
-      // normalize to date-only comparison
-      const dayTime = day.setHours(0, 0, 0, 0);
-      const startTime = new Date(req.startDate).setHours(0, 0, 0, 0);
-      const endTime = new Date(req.endDate).setHours(0, 0, 0, 0);
-      if (dayTime >= startTime && dayTime <= endTime) {
+      const startStr = format(new Date(req.startDate), "yyyy-MM-dd");
+      const endStr = format(new Date(req.endDate), "yyyy-MM-dd");
+      if (dayStr >= startStr && dayStr <= endStr) {
         return req;
       }
     }
     return null;
   };
 
-  const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const getHolidayForDay = (day: Date): PublicHoliday | null => {
+    const dayStr = format(day, "yyyy-MM-dd");
+    return PUBLIC_HOLIDAYS_2026.find((h) => h.date === dayStr) || null;
+  };
+
+  const weekdays = ["S", "M", "T", "W", "T", "F", "S"];
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold">
-            {format(currentMonth, "MMMM yyyy")}
-          </CardTitle>
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 w-full">
+      {/* ─── 12-Month Grid (Left 9 columns) ─────────────────────────────────── */}
+      <div className="xl:col-span-9 space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-bold tracking-tight">
+              {selectedYear} Time Off Calendar
+            </h2>
+          </div>
           <div className="flex items-center gap-1">
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => setCurrentMonth(new Date())}
+              onClick={() => setSelectedYear((y) => y - 1)}
+              className="h-8 px-2.5 text-xs"
             >
-              Today
+              <ChevronLeft className="h-4 w-4 mr-1" /> {selectedYear - 1}
             </Button>
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              variant="default"
+              size="sm"
+              onClick={() => setSelectedYear(new Date().getFullYear())}
+              className="h-8 px-3 text-xs"
             >
-              <ChevronRight className="h-4 w-4" />
+              Current Year
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedYear((y) => y + 1)}
+              className="h-8 px-2.5 text-xs"
+            >
+              {selectedYear + 1} <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {/* Weekday headers */}
-        <div className="grid grid-cols-7 mb-1">
-          {weekdays.map((wd) => (
-            <div
-              key={wd}
-              className="text-center text-xs font-medium text-muted-foreground py-1"
-            >
-              {wd}
-            </div>
-          ))}
-        </div>
 
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-px">
-          {blanks.map((_, i) => (
-            <div key={`blank-${i}`} className="h-9" />
-          ))}
-          {days.map((day) => {
-            const req = getRequestForDay(day);
-            const isToday = isSameDay(day, new Date());
+        {/* 12-Month Responsive Grid (4x3 layout) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 12 }).map((_, monthIndex) => {
+            const monthDate = new Date(selectedYear, monthIndex, 1);
+            const monthStart = startOfMonth(monthDate);
+            const monthEnd = endOfMonth(monthDate);
+            const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+            const startDayIndex = getDay(monthStart); // 0 (Sun) to 6 (Sat)
+            const blanks = Array.from({ length: startDayIndex });
 
             return (
-              <div
-                key={day.toISOString()}
-                className={cn(
-                  "h-9 flex flex-col items-center justify-center rounded-md text-xs relative transition-colors",
-                  isToday && !req && "ring-1 ring-primary ring-offset-1",
-                  req ? STATUS_BG[req.status] : "hover:bg-muted/50",
-                  !isSameMonth(day, currentMonth) && "opacity-30"
-                )}
-                title={req ? `${req.leaveType?.name ?? "Time Off"} — ${req.status}` : undefined}
-              >
-                <span
-                  className={cn(
-                    "font-medium leading-none",
-                    isToday && !req && "text-primary font-bold"
-                  )}
-                >
-                  {format(day, "d")}
-                </span>
-                {req && (
-                  <span
-                    className={cn(
-                      "w-1 h-1 rounded-full mt-0.5",
-                      STATUS_DOT[req.status]
-                    )}
-                  />
-                )}
-              </div>
+              <Card key={monthIndex} className="border shadow-2xs hover:border-primary/40 transition-colors">
+                <CardHeader className="p-3 pb-2 border-b bg-muted/20">
+                  <CardTitle className="text-xs font-bold text-center tracking-wide text-foreground">
+                    {format(monthDate, "MMMM yyyy")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 pt-2">
+                  {/* Weekday headers */}
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                    {weekdays.map((w, idx) => (
+                      <span
+                        key={idx}
+                        className={cn(
+                          "text-[10px] font-semibold",
+                          idx === 0 || idx === 6 ? "text-muted-foreground/60" : "text-muted-foreground"
+                        )}
+                      >
+                        {w}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Day cells */}
+                  <div className="grid grid-cols-7 gap-1 text-center">
+                    {blanks.map((_, i) => (
+                      <div key={`blank-${i}`} className="h-6 w-6" />
+                    ))}
+
+                    {daysInMonth.map((day) => {
+                      const req = getRequestForDay(day);
+                      const holiday = getHolidayForDay(day);
+                      const isSun = getDay(day) === 0;
+                      const isSat = getDay(day) === 6;
+                      const isTodayDate = isSameDay(day, new Date());
+
+                      let statusClass = "text-foreground hover:bg-muted/60";
+                      let dotColor = null;
+
+                      if (req) {
+                        if (req.status === "APPROVED") {
+                          statusClass = "bg-purple-600 text-white font-bold hover:bg-purple-700 shadow-2xs";
+                          dotColor = "bg-purple-300";
+                        } else if (req.status === "PENDING") {
+                          statusClass = "bg-amber-400 text-amber-950 font-bold hover:bg-amber-500 shadow-2xs";
+                          dotColor = "bg-amber-800";
+                        } else if (req.status === "REJECTED") {
+                          statusClass = "bg-red-500 text-white line-through opacity-70";
+                          dotColor = "bg-red-200";
+                        }
+                      } else if (holiday) {
+                        statusClass = "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/40";
+                      } else if (isTodayDate) {
+                        statusClass = "ring-2 ring-primary ring-offset-1 font-extrabold text-primary";
+                      } else if (isSun || isSat) {
+                        statusClass = "text-muted-foreground/50";
+                      }
+
+                      return (
+                        <button
+                          key={day.toISOString()}
+                          type="button"
+                          onClick={() => onSelectDate && onSelectDate(day)}
+                          title={
+                            req
+                              ? `${req.leaveType?.name || "Leave"} (${req.status})`
+                              : holiday
+                              ? `Holiday: ${holiday.name}`
+                              : format(day, "d MMM yyyy")
+                          }
+                          className={cn(
+                            "h-6 w-6 mx-auto rounded flex items-center justify-center text-[11px] font-medium transition-transform active:scale-95",
+                            statusClass
+                          )}
+                        >
+                          {format(day, "d")}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
+      </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 mt-4 pt-3 border-t">
-          {[
-            { status: "PENDING", label: "Pending" },
-            { status: "APPROVED", label: "Approved" },
-            { status: "REJECTED", label: "Rejected" },
-          ].map(({ status, label }) => (
-            <div key={status} className="flex items-center gap-1.5">
-              <span className={cn("w-2 h-2 rounded-full", STATUS_DOT[status])} />
-              <span className="text-xs text-muted-foreground">{label}</span>
+      {/* ─── Legend & Public Holidays List (Right 3 columns) ────────────────── */}
+      <div className="xl:col-span-3 space-y-4">
+        {/* Color Legend (from Excalidraw) */}
+        <Card className="border shadow-xs">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Info className="h-3.5 w-3.5" /> Legend
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2.5 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="h-3.5 w-3.5 rounded bg-purple-600 shadow-xs flex-shrink-0" />
+              <span className="font-medium text-foreground">Validated / Approved</span>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            <div className="flex items-center gap-2.5">
+              <span className="h-3.5 w-3.5 rounded bg-amber-400 shadow-xs flex-shrink-0" />
+              <span className="font-medium text-foreground">To Approve (Pending)</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="h-3.5 w-3.5 rounded bg-red-500 shadow-xs flex-shrink-0" />
+              <span className="font-medium text-foreground">Refused / Rejected</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="h-3.5 w-3.5 rounded bg-emerald-500/20 border border-emerald-500/40 shadow-xs flex-shrink-0" />
+              <span className="font-medium text-foreground">Public Holidays</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Public Holidays List (from Excalidraw) */}
+        <Card className="border shadow-xs">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Palmtree className="h-3.5 w-3.5 text-emerald-600" /> Public Holidays ({selectedYear})
+              </CardTitle>
+              <Badge variant="outline" className="text-[10px] font-mono">
+                {PUBLIC_HOLIDAYS_2026.length} Days
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y max-h-[380px] overflow-y-auto">
+              {PUBLIC_HOLIDAYS_2026.map((h, i) => (
+                <div key={i} className="px-4 py-2 text-xs flex items-center justify-between hover:bg-muted/20">
+                  <span className="text-muted-foreground font-mono text-[11px]">
+                    {format(new Date(h.date), "MMM dd")}
+                  </span>
+                  <span className="font-medium text-foreground text-right pl-2 truncate">
+                    {h.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
