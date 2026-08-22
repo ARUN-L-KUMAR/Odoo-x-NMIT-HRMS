@@ -1,0 +1,211 @@
+// Dayflow HRMS — Prisma Schema
+// PostgreSQL via Neon (serverless)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  INACTIVE
+  ON_NOTICE
+  TERMINATED
+}
+
+// ─── User (Auth) ──────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  employeeId   String   @unique @map("employee_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(EMPLOYEE)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  employee       Employee?
+  reviewedLeaves LeaveRequest[] @relation("ReviewedLeaves")
+  activityLogs   ActivityLog[]
+
+  @@index([email])
+  @@index([employeeId])
+  @@map("users")
+}
+
+// ─── Employee Profile ─────────────────────────────────────────────────────────
+
+model Employee {
+  id               String           @id @default(cuid())
+  userId           String           @unique @map("user_id")
+  firstName        String           @map("first_name")
+  lastName         String           @map("last_name")
+  phone            String?
+  address          String?
+  city             String?
+  state            String?
+  postalCode       String?          @map("postal_code")
+  designation      String?
+  department       String?
+  joiningDate      DateTime?        @map("joining_date") @db.Date
+  employmentStatus EmploymentStatus @default(ACTIVE) @map("employment_status")
+  profileImage     String?          @map("profile_image")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  salaryStructure SalaryStructure?
+  documents       EmployeeDocument[]
+
+  @@index([userId])
+  @@index([department])
+  @@map("employees")
+}
+
+// ─── Employee Documents ───────────────────────────────────────────────────────
+
+model EmployeeDocument {
+  id           String   @id @default(cuid())
+  employeeId   String   @map("employee_id")
+  documentType String   @map("document_type") // Aadhaar, PAN, Resume, etc.
+  documentName String   @map("document_name")
+  documentUrl  String   @map("document_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("employee_documents")
+}
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+
+model Attendance {
+  id             String           @id @default(cuid())
+  employeeId     String           @map("employee_id")
+  attendanceDate DateTime         @map("attendance_date") @db.Date
+  checkIn        DateTime?        @map("check_in")
+  checkOut       DateTime?        @map("check_out")
+  workedMinutes  Int              @default(0) @map("worked_minutes")
+  status         AttendanceStatus @default(PRESENT)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, attendanceDate])
+  @@index([employeeId])
+  @@index([attendanceDate])
+  @@map("attendance")
+}
+
+// ─── Leave Types ──────────────────────────────────────────────────────────────
+
+model LeaveType {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  isPaid      Boolean @default(true) @map("is_paid")
+  annualLimit Int?    @map("annual_limit") // null = unlimited
+  isActive    Boolean @default(true) @map("is_active")
+
+  leaveRequests LeaveRequest[]
+
+  @@map("leave_types")
+}
+
+// ─── Leave Requests ───────────────────────────────────────────────────────────
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  employeeId  String      @map("employee_id")
+  leaveTypeId String      @map("leave_type_id")
+  startDate   DateTime    @map("start_date") @db.Date
+  endDate     DateTime    @map("end_date") @db.Date
+  totalDays   Decimal     @map("total_days") @db.Decimal(4, 1)
+  reason      String
+  status      LeaveStatus @default(PENDING)
+  reviewedBy  String?     @map("reviewed_by")
+  reviewedAt  DateTime?   @map("reviewed_at")
+  adminComment String?    @map("admin_comment")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+  reviewer  User?     @relation("ReviewedLeaves", fields: [reviewedBy], references: [id])
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+  @@map("leave_requests")
+}
+
+// ─── Salary Structure ─────────────────────────────────────────────────────────
+
+model SalaryStructure {
+  id            String   @id @default(cuid())
+  employeeId    String   @unique @map("employee_id")
+  basicSalary   Decimal  @default(0) @map("basic_salary") @db.Decimal(12, 2)
+  hra           Decimal  @default(0) @db.Decimal(12, 2)
+  allowances    Decimal  @default(0) @db.Decimal(12, 2)
+  deductions    Decimal  @default(0) @db.Decimal(12, 2)
+  pf            Decimal  @default(0) @db.Decimal(12, 2)
+  tax           Decimal  @default(0) @db.Decimal(12, 2)
+  grossSalary   Decimal  @default(0) @map("gross_salary") @db.Decimal(12, 2)
+  netSalary     Decimal  @default(0) @map("net_salary") @db.Decimal(12, 2)
+  effectiveFrom DateTime @default(now()) @map("effective_from") @db.Date
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("salary_structures")
+}
+
+// ─── Activity Logs ────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  action      String   // e.g. EMPLOYEE_CHECKED_IN
+  entityType  String?  @map("entity_type") // attendance, leave, employee, etc.
+  entityId    String?  @map("entity_id")
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
