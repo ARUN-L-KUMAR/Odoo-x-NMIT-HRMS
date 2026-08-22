@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Dayflow — HRMS",
-    template: "%s | Dayflow",
+    default: "HRMS — Enterprise Workforce Management",
+    template: "%s | HRMS",
   },
   description:
-    "Dayflow — Human Resource Management System. Every workday, perfectly aligned.",
+    "HRMS — Enterprise Human Resource Management System. Every workday, perfectly aligned.",
   keywords: ["HRMS", "HR", "attendance", "payroll", "leave management"],
 };
 
