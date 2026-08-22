@@ -18,8 +18,9 @@ function getCompanyInitials(name: string): string {
 // GET /api/organization — Return current tenant details, all organizations list, and stats
 export async function GET() {
   try {
-    const session = await requireAuth();
+    const session = await requireAdmin();
     const companyId = session.user.companyId;
+
 
     let company = null;
     if (companyId) {

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+
 import {
   Building2,
   Users,
@@ -74,7 +76,8 @@ interface OrgData {
 }
 
 export default function OrganizationPage() {
-  const { data: session, update: updateSession } = useSession();
+  const router = useRouter();
+  const { data: session, status, update: updateSession } = useSession();
   const userRole = session?.user?.role?.toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isTenantAdmin = userRole === "ADMIN" || isSuperAdmin;
@@ -82,6 +85,15 @@ export default function OrganizationPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<OrgData | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "departments" | "leaves" | "all_orgs" | "settings">("overview");
+
+  // Protect page: redirect non-admin users
+  useEffect(() => {
+    if (status === "authenticated" && !isTenantAdmin) {
+      toast.error("Access restricted to Admins only");
+      router.replace("/dashboard");
+    }
+  }, [status, isTenantAdmin, router]);
+
 
   // Organization Edit Form
   const [name, setName] = useState("");

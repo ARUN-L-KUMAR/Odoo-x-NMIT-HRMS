@@ -38,10 +38,10 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Employees", href: "/employees", icon: Users },
   { label: "Attendance", href: "/attendance", icon: Clock },
   { label: "Time Off", href: "/time-off", icon: CalendarDays },
-  { label: "Organization", href: "/organization", icon: Building2 },
   // Admin-only modules
   { label: "Payroll", href: "/payroll", icon: DollarSign, adminOnly: true },
   { label: "Reports", href: "/reports", icon: BarChart3, adminOnly: true },
+  { label: "Organization", href: "/organization", icon: Building2, adminOnly: true },
 ];
 
 interface SidebarProps {
@@ -52,7 +52,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const isAdmin = session?.user?.role === "ADMIN" || (session?.user as any)?.role === "SUPER_ADMIN";
   const userName = session?.user?.name || session?.user?.employeeId || "User";
   const userImage = session?.user?.image;
   const companyName = session?.user?.companyName || "Dayflow";
@@ -73,7 +73,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     >
       {/* Logo / Organization Branding */}
       <div className="flex items-center h-14 px-4 border-b border-sidebar-border flex-shrink-0">
-        <Link href="/organization" className="flex items-center gap-3 overflow-hidden hover:opacity-85 transition-opacity group">
+        <Link href={isAdmin ? "/organization" : "/dashboard"} className="flex items-center gap-3 overflow-hidden hover:opacity-85 transition-opacity group">
+
           {companyLogo ? (
             <img
               src={companyLogo}
