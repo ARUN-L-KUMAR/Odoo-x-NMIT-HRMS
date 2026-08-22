@@ -1,8 +1,4 @@
-// Import directly from the generated client to avoid @prisma/client
-// re-export resolution issues with Prisma 7 in some IDE language servers.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore – generated path is always present after `prisma generate`
-import { PrismaClient } from ".prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 
 function createPrismaClient() {
