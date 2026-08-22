@@ -1,10 +1,27 @@
-export {
-  Role,
-  AttendanceStatus,
-  LeaveStatus,
-  EmploymentStatus,
-} from "@prisma/client";
+export enum Role {
+  ADMIN = "ADMIN",
+  EMPLOYEE = "EMPLOYEE",
+}
 
+export enum AttendanceStatus {
+  PRESENT = "PRESENT",
+  ABSENT = "ABSENT",
+  HALF_DAY = "HALF_DAY",
+  LEAVE = "LEAVE",
+}
+
+export enum LeaveStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+}
+
+export enum EmploymentStatus {
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
+  ON_NOTICE = "ON_NOTICE",
+  TERMINATED = "TERMINATED",
+}
 
 // Convenient string literal types (safe for client-side code without Prisma)
 export type RoleType = "ADMIN" | "EMPLOYEE";

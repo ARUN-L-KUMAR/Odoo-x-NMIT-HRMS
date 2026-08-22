@@ -4,10 +4,16 @@ import { requireAuth } from "@/lib/auth/permissions";
 // GET /api/leave/types
 export async function GET() {
   try {
-    await requireAuth();
+    const session = await requireAuth();
+
+    const companyId = session.user.companyId;
+    const where: any = { isActive: true };
+    if (companyId) {
+      where.OR = [{ companyId }, { companyId: null }];
+    }
 
     const types = await prisma.leaveType.findMany({
-      where: { isActive: true },
+      where,
       orderBy: { name: "asc" },
     });
 

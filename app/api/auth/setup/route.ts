@@ -73,17 +73,6 @@ export async function POST(req: NextRequest) {
     const { companyName, logoUrl, name, email, phone, password } = parsed.data;
 
 
-    // Check if company already exists (prevent duplicate setup)
-    const existingCompany = await prisma.company.findFirst();
-    if (existingCompany) {
-      return errorResponse(
-        "CONFLICT",
-        "Company already set up. Please sign in.",
-        {},
-        409
-      );
-    }
-
     // Check email uniqueness
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -106,15 +95,31 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hashPassword(password);
 
-    // Create company + admin user + employee profile in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    // Create company + default leave types + admin user + employee profile in a transaction
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Create company
       const company = await tx.company.create({
         data: { name: companyName, initials, logoUrl: logoUrl || null },
       });
 
+      // 2. Create default leave types for this company
+      const defaultLeaveTypes = [
+        { name: "Paid Time Off (PTO)", description: "Standard paid vacation days", isPaid: true, annualLimit: 18 },
+        { name: "Sick Leave", description: "Medical and health-related leave", isPaid: true, annualLimit: 12 },
+        { name: "Casual Leave", description: "Short planned personal time off", isPaid: true, annualLimit: 10 },
+        { name: "Unpaid Leave", description: "Leave without pay", isPaid: false, annualLimit: null },
+      ];
 
-      // 2. Create admin user
+      for (const lt of defaultLeaveTypes) {
+        await tx.leaveType.create({
+          data: {
+            ...lt,
+            companyId: company.id,
+          },
+        });
+      }
+
+      // 3. Create admin user
       const user = await tx.user.create({
         data: {
           employeeId: loginId,
@@ -122,6 +127,7 @@ export async function POST(req: NextRequest) {
           passwordHash,
           role: Role.ADMIN,
           mustChangePassword: false,
+          companyId: company.id,
           employee: {
             create: {
               firstName,
@@ -131,20 +137,22 @@ export async function POST(req: NextRequest) {
               department: "Human Resources",
               joiningDate: new Date(),
               employmentStatus: "ACTIVE",
+              companyId: company.id,
             },
           },
         },
         include: { employee: true },
       });
 
-      // 3. Log the setup activity
+      // 4. Log the setup activity
       await tx.activityLog.create({
         data: {
           userId: user.id,
+          companyId: company.id,
           action: "COMPANY_SETUP",
           entityType: "company",
           entityId: company.id,
-          description: `Company "${companyName}" set up by ${name} (${loginId})`,
+          description: `Organization "${companyName}" created by ${name} (${loginId})`,
         },
       });
 
@@ -158,8 +166,9 @@ export async function POST(req: NextRequest) {
           loginId: result.loginId,
           email,
           companyName,
+          companyId: result.company.id,
         },
-        message: "Company setup complete",
+        message: "Organization created successfully",
       },
       { status: 201 }
     );

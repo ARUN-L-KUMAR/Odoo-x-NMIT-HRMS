@@ -6,9 +6,11 @@ import { AttendanceStatus } from "@/lib/enums";
 // GET /api/dashboard/admin
 export async function GET() {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
 
     const today = startOfDay(new Date());
+    const companyId = session.user.companyId;
+    const empFilter = companyId ? { companyId } : {};
 
     const [
       totalEmployees,
@@ -18,13 +20,19 @@ export async function GET() {
       recentActivity,
       departmentGroups,
     ] = await Promise.all([
-      prisma.employee.count({ where: { employmentStatus: "ACTIVE" } }),
+      prisma.employee.count({ where: { employmentStatus: "ACTIVE", ...empFilter } }),
       prisma.attendance.findMany({
-        where: { attendanceDate: today },
+        where: {
+          attendanceDate: today,
+          employee: empFilter,
+        },
         select: { status: true },
       }),
       prisma.leaveRequest.findMany({
-        where: { status: "PENDING" },
+        where: {
+          status: "PENDING",
+          employee: empFilter,
+        },
         include: {
           employee: {
             select: { id: true, firstName: true, lastName: true, profileImage: true, department: true },
@@ -35,11 +43,13 @@ export async function GET() {
         take: 5,
       }),
       prisma.employee.findMany({
+        where: empFilter,
         orderBy: { createdAt: "desc" },
         take: 5,
         include: { user: { select: { employeeId: true, email: true, role: true } } },
       }),
       prisma.activityLog.findMany({
+        where: companyId ? { companyId } : {},
         orderBy: { createdAt: "desc" },
         take: 10,
         include: {
@@ -49,13 +59,13 @@ export async function GET() {
       prisma.employee.groupBy({
         by: ["department"],
         _count: { id: true },
-        where: { employmentStatus: "ACTIVE", department: { not: null } },
+        where: { employmentStatus: "ACTIVE", department: { not: null }, ...empFilter },
       }),
     ]);
 
     const presentToday = todayAttendance.filter((a: { status: string }) => a.status === AttendanceStatus.PRESENT).length;
     const onLeaveToday = todayAttendance.filter((a: { status: string }) => a.status === AttendanceStatus.LEAVE).length;
-    const absentToday = totalEmployees - presentToday - onLeaveToday;
+    const absentToday = Math.max(0, totalEmployees - presentToday - onLeaveToday);
 
     // Build attendance trend for last 7 days
     const trendDays = 7;
@@ -64,7 +74,10 @@ export async function GET() {
     for (let i = trendDays - 1; i >= 0; i--) {
       const date = subDays(today, i);
       const dayRecords = await prisma.attendance.findMany({
-        where: { attendanceDate: date },
+        where: {
+          attendanceDate: date,
+          employee: empFilter,
+        },
         select: { status: true },
       });
       attendanceTrend.push({

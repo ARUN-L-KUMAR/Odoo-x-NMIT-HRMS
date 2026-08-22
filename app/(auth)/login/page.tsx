@@ -187,17 +187,17 @@ export default function LoginPage() {
 
       <div className="text-center space-y-2">
         <p className="text-sm text-muted-foreground">
-          First time setting up?{" "}
+          New Organization?{" "}
           <Link
             href="/register"
             className="text-primary font-medium hover:underline inline-flex items-center gap-1"
           >
             <Building2 className="h-3.5 w-3.5" />
-            Company Setup
+            Register Organization
           </Link>
         </p>
         <p className="text-[11px] text-muted-foreground">
-          Employees are added by your HR Administrator
+          Employees are added by their Organization HR Administrator
         </p>
       </div>
     </div>

@@ -66,10 +66,13 @@ export async function GET(
 
     const employee = await prisma.employee.findUnique({
       where: { id },
-      select: isAdmin ? adminEmployeeSelect : publicEmployeeSelect,
+      select: {
+        companyId: true,
+        ...(isAdmin ? adminEmployeeSelect : publicEmployeeSelect),
+      },
     });
 
-    if (!employee) {
+    if (!employee || (session.user.companyId && employee.companyId && employee.companyId !== session.user.companyId)) {
       return Response.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, { status: 404 });
     }
 
@@ -93,6 +96,12 @@ export async function PATCH(
 
     if (!isAdmin && session.user.employeeDbId !== id) {
       return Response.json({ success: false, error: { code: "FORBIDDEN", message: "You can only update your own profile" } }, { status: 403 });
+    }
+
+    // Verify employee belongs to admin's company
+    const existing = await prisma.employee.findUnique({ where: { id }, select: { companyId: true } });
+    if (!existing || (session.user.companyId && existing.companyId && existing.companyId !== session.user.companyId)) {
+      return Response.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, { status: 404 });
     }
 
     const body = await req.json();
@@ -120,6 +129,7 @@ export async function PATCH(
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
+        companyId: session.user.companyId || null,
         action: "PROFILE_UPDATED",
         entityType: "employee",
         entityId: id,
@@ -146,6 +156,11 @@ export async function DELETE(
 
     if (session.user.role !== Role.ADMIN) {
       return Response.json({ success: false, error: { code: "FORBIDDEN", message: "Admin only" } }, { status: 403 });
+    }
+
+    const existing = await prisma.employee.findUnique({ where: { id }, select: { companyId: true } });
+    if (!existing || (session.user.companyId && existing.companyId && existing.companyId !== session.user.companyId)) {
+      return Response.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, { status: 404 });
     }
 
     await prisma.employee.delete({ where: { id } });

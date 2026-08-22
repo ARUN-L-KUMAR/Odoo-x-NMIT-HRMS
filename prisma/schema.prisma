@@ -47,6 +47,12 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Relations
+  users        User[]
+  employees    Employee[]
+  leaveTypes   LeaveType[]
+  activityLogs ActivityLog[]
+
   @@map("company")
 }
 
@@ -60,14 +66,17 @@ model User {
   role               Role     @default(EMPLOYEE)
   isActive           Boolean  @default(true) @map("is_active")
   mustChangePassword Boolean  @default(false) @map("must_change_password")
+  companyId          String?  @map("company_id")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
+  company        Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employee       Employee?
   reviewedLeaves LeaveRequest[] @relation("ReviewedLeaves")
   activityLogs   ActivityLog[]
 
+  @@index([companyId])
   @@index([email])
   @@index([employeeId])
   @@map("users")
@@ -78,6 +87,7 @@ model User {
 model Employee {
   id               String           @id @default(cuid())
   userId           String           @unique @map("user_id")
+  companyId        String?          @map("company_id")
   firstName        String           @map("first_name")
   lastName         String           @map("last_name")
   phone            String?
@@ -114,12 +124,14 @@ model Employee {
 
   // Relations
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company         Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   attendances     Attendance[]
   leaveRequests   LeaveRequest[]
   salaryStructure SalaryStructure?
   documents       EmployeeDocument[]
 
   @@index([userId])
+  @@index([companyId])
   @@index([department])
   @@map("employees")
 }
@@ -165,14 +177,17 @@ model Attendance {
 
 model LeaveType {
   id          String  @id @default(cuid())
+  companyId   String? @map("company_id")
   name        String
   description String?
   isPaid      Boolean @default(true) @map("is_paid")
   annualLimit Int?    @map("annual_limit") // null = unlimited
   isActive    Boolean @default(true) @map("is_active")
 
+  company       Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   leaveRequests LeaveRequest[]
 
+  @@index([companyId])
   @@map("leave_types")
 }
 
@@ -244,15 +259,18 @@ model SalaryStructure {
 model ActivityLog {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
+  companyId   String?  @map("company_id")
   action      String   // e.g. EMPLOYEE_CHECKED_IN
   entityType  String?  @map("entity_type") // attendance, leave, employee, etc.
   entityId    String?  @map("entity_id")
   description String
   createdAt   DateTime @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([companyId])
   @@index([createdAt])
   @@map("activity_logs")
 }

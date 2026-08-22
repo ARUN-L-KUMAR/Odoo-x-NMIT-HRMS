@@ -67,6 +67,14 @@ export function Topbar({ onMenuClick, pageTitle }: TopbarProps) {
       {/* Spacer */}
       <div className="flex-1" />
 
+      {/* Organization Badge (Desktop) */}
+      {session?.user?.companyName && (
+        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border text-xs text-muted-foreground font-medium">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          <span className="truncate max-w-[150px]">{session.user.companyName}</span>
+        </div>
+      )}
+
       {/* Right actions: Systray Attendance & Avatar */}
       <div className="flex items-center gap-3">
         {/* Quick Check-in / Check-out button in header */}
