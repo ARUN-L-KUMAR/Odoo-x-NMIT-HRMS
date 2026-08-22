@@ -117,10 +117,10 @@ export default function CompanySetupPage() {
         </div>
         <div className="flex items-center gap-2 mb-1">
           <Building2 className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-bold tracking-tight">Company Setup</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Register Organization</h2>
         </div>
         <p className="text-muted-foreground text-sm">
-          Set up your organization and create your Admin account
+          Set up a new organization and create its Admin account
         </p>
       </div>
 
@@ -133,7 +133,7 @@ export default function CompanySetupPage() {
 
         {/* Company Name & Logo */}
         <div className="space-y-2">
-          <Label htmlFor="companyName">Company Name</Label>
+          <Label htmlFor="companyName">Company / Organization Name</Label>
           <Input
             id="companyName"
             placeholder="e.g. Acme Corp"
@@ -150,7 +150,7 @@ export default function CompanySetupPage() {
 
         {/* Company Logo (Cloudinary upload) */}
         <div className="space-y-2">
-          <Label>Company Logo <span className="text-muted-foreground">(optional)</span></Label>
+          <Label>Organization Logo <span className="text-muted-foreground">(optional)</span></Label>
           <ImageUpload
             value={watch("logoUrl") || null}
             onChange={(url) => setValue("logoUrl", url)}
@@ -261,19 +261,19 @@ export default function CompanySetupPage() {
           {isSubmitting ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Setting up...
+              Registering organization...
             </>
           ) : (
             <>
               <Building2 className="h-4 w-4 mr-2" />
-              Create Company & Admin Account
+              Register Organization & Admin Account
             </>
           )}
         </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
-        Already set up?{" "}
+        Already registered an organization?{" "}
         <Link href="/login" className="text-primary font-medium hover:underline">
           Sign In
         </Link>

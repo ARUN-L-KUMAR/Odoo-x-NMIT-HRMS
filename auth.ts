@@ -31,6 +31,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ? { email: identifier }
             : { employeeId: identifier },
           include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+                initials: true,
+                logoUrl: true,
+              },
+            },
             employee: {
               select: {
                 id: true,
@@ -55,6 +63,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           role: user.role,
           mustChangePassword: user.mustChangePassword,
+          companyId: user.companyId ?? user.company?.id ?? null,
+          companyName: user.company?.name ?? null,
+          companyInitials: user.company?.initials ?? null,
+          companyLogo: user.company?.logoUrl ?? null,
           name: user.employee
             ? `${user.employee.firstName} ${user.employee.lastName}`
             : user.employeeId,
@@ -77,11 +89,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.department = (user as any).department;
         token.designation = (user as any).designation;
         token.mustChangePassword = (user as any).mustChangePassword;
+        token.companyId = (user as any).companyId;
+        token.companyName = (user as any).companyName;
+        token.companyInitials = (user as any).companyInitials;
+        token.companyLogo = (user as any).companyLogo;
       }
       if (trigger === "update" && session) {
         if (typeof session.mustChangePassword === "boolean") {
           token.mustChangePassword = session.mustChangePassword;
         }
+        if (session.companyName) token.companyName = session.companyName;
+        if (session.companyLogo) token.companyLogo = session.companyLogo;
       }
       return token;
     },
@@ -95,6 +113,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.department = token.department as string | null;
         session.user.designation = token.designation as string | null;
         session.user.mustChangePassword = token.mustChangePassword as boolean;
+        session.user.companyId = (token.companyId as string) || null;
+        session.user.companyName = (token.companyName as string) || null;
+        session.user.companyInitials = (token.companyInitials as string) || null;
+        session.user.companyLogo = (token.companyLogo as string) || null;
       }
       return session;
     },

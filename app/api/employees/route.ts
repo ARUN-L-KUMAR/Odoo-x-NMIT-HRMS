@@ -38,14 +38,12 @@ const employeeSelect = {
  * Example: DFJODO20240001
  */
 async function generateEmployeeLoginId(
+  companyInitials: string,
   firstName: string,
   lastName: string,
   joiningDate?: string
 ): Promise<string> {
-  // Get company initials from DB
-  const company = await prisma.company.findFirst({ select: { initials: true } });
-  const initials = company?.initials || "DF";
-
+  const initials = companyInitials || "DF";
   const fn2 = firstName.substring(0, 2).toUpperCase().replace(/[^A-Z]/g, "X");
   const ln2 = lastName.substring(0, 2).toUpperCase().replace(/[^A-Z]/g, "X");
   const year = joiningDate
@@ -84,7 +82,7 @@ function generateTempPassword(): string {
   return `${rand(upper)}${base}${rand(digits)}${rand(symbols)}`;
 }
 
-// GET /api/employees — admin: all employees, employee: all (for directory)
+// GET /api/employees — admin: all employees in company, employee: all in company (for directory)
 export async function GET(req: NextRequest) {
   try {
     const session = await requireAuth();
@@ -93,8 +91,12 @@ export async function GET(req: NextRequest) {
     const department = searchParams.get("department");
     const status = searchParams.get("status");
     const isAdmin = session.user.role === Role.ADMIN;
+    const companyId = session.user.companyId;
 
     const where: any = {};
+    if (companyId) {
+      where.companyId = companyId;
+    }
     if (department) where.department = department;
     if (status && isAdmin) where.employmentStatus = status;
     if (search) {
@@ -151,8 +153,11 @@ export async function POST(req: NextRequest) {
       return errorResponse("CONFLICT", "Email already exists", { email: ["Email in use"] }, 409);
     }
 
-    // Auto-generate Login ID and temp password
-    const loginId = await generateEmployeeLoginId(firstName, lastName, joiningDate);
+    // Auto-generate Login ID using company initials and temp password
+    const companyInitials = session.user.companyInitials || "DF";
+    const companyId = session.user.companyId || null;
+
+    const loginId = await generateEmployeeLoginId(companyInitials, firstName, lastName, joiningDate);
     const tempPassword = generateTempPassword();
     const passwordHash = await hashPassword(tempPassword);
 
@@ -163,8 +168,10 @@ export async function POST(req: NextRequest) {
         passwordHash,
         role: Role.EMPLOYEE,
         mustChangePassword: true, // force password change on first login
+        companyId,
         employee: {
           create: {
+            companyId,
             firstName,
             lastName,
             phone: phone || null,
@@ -179,11 +186,11 @@ export async function POST(req: NextRequest) {
       include: { employee: { select: employeeSelect } },
     });
 
-
     // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
+        companyId,
         action: "EMPLOYEE_CREATED",
         entityType: "employee",
         entityId: user.employee?.id,

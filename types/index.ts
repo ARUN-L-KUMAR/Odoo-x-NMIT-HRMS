@@ -12,8 +12,22 @@ declare module "next-auth" {
       department: string | null;
       designation: string | null;
       mustChangePassword: boolean;
+      companyId: string | null;
+      companyName: string | null;
+      companyInitials: string | null;
+      companyLogo: string | null;
     } & DefaultSession["user"];
   }
+}
+
+// ─── Company ──────────────────────────────────────────────────────────────────
+
+export interface Company {
+  id: string;
+  name: string;
+  initials: string;
+  logoUrl: string | null;
+  createdAt: string;
 }
 
 // ─── Enums (mirrored from Prisma for client use) ───────────────────────────────
@@ -30,6 +44,8 @@ export interface User {
   employeeId: string;
   email: string;
   role: Role;
+  companyId: string | null;
+  company?: Company | null;
   isActive: boolean;
   createdAt: string;
 }

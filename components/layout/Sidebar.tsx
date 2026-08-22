@@ -53,6 +53,9 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const isAdmin = session?.user?.role === "ADMIN";
   const userName = session?.user?.name || session?.user?.employeeId || "User";
   const userImage = session?.user?.image;
+  const companyName = session?.user?.companyName || "Dayflow";
+  const companyLogo = session?.user?.companyLogo;
+  const companyInitials = session?.user?.companyInitials || companyName.slice(0, 2).toUpperCase() || "DF";
 
   const filteredNav = NAV_ITEMS.filter((item) => {
     if (item.adminOnly && !isAdmin) return false;
@@ -66,16 +69,29 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         collapsed ? "w-16" : "w-64"
       )}
     >
-      {/* Logo */}
+      {/* Logo / Organization Branding */}
       <div className="flex items-center h-14 px-4 border-b border-sidebar-border flex-shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0">
-            D
-          </div>
+          {companyLogo ? (
+            <img
+              src={companyLogo}
+              alt={companyName}
+              className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs flex-shrink-0 shadow-xs">
+              {companyInitials}
+            </div>
+          )}
           {!collapsed && (
-            <span className="font-semibold text-sidebar-foreground tracking-tight whitespace-nowrap">
-              Dayflow
-            </span>
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold text-sm text-sidebar-foreground tracking-tight truncate leading-tight">
+                {companyName}
+              </span>
+              <span className="text-[10px] text-muted-foreground tracking-wider uppercase">
+                Organization
+              </span>
+            </div>
           )}
         </div>
         {!collapsed && onToggle && (

@@ -4,9 +4,10 @@ import { requireAdmin } from "@/lib/auth/permissions";
 // GET /api/payroll — admin: all salary structures
 export async function GET() {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
 
     const salaries = await prisma.salaryStructure.findMany({
+      where: session.user.companyId ? { employee: { companyId: session.user.companyId } } : {},
       include: {
         employee: {
           select: {

@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
       }
     } else {
       if (employeeId) where.employeeId = employeeId;
+      if (session.user.companyId) {
+        where.employee = { companyId: session.user.companyId };
+      }
     }
 
     if (status) where.status = status;

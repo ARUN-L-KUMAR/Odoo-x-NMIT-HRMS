@@ -8,17 +8,23 @@ import { requireAuth } from "@/lib/auth/permissions";
  */
 export async function GET() {
   try {
-    await requireAuth();
+    const session = await requireAuth();
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const companyFilter = session.user.companyId ? { companyId: session.user.companyId } : {};
+
     const [allEmployees, todayRecords] = await Promise.all([
       prisma.employee.findMany({
+        where: companyFilter,
         select: { id: true },
       }),
       prisma.attendance.findMany({
-        where: { attendanceDate: today },
+        where: {
+          attendanceDate: today,
+          employee: companyFilter,
+        },
         select: {
           employeeId: true,
           status: true,
@@ -28,9 +34,11 @@ export async function GET() {
       }),
     ]);
 
-    const recordMap = new Map(todayRecords.map((r) => [r.employeeId, r]));
+    const recordMap = new Map<string, { employeeId: string; status: string; checkIn: Date | null; checkOut: Date | null }>(
+      todayRecords.map((r: any) => [r.employeeId, r])
+    );
 
-    const data = allEmployees.map((emp) => {
+    const data = allEmployees.map((emp: { id: string }) => {
       const record = recordMap.get(emp.id);
       let status = "ABSENT";
       if (record) {

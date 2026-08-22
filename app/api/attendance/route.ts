@@ -24,8 +24,13 @@ export async function GET(req: NextRequest) {
         return Response.json({ success: true, data: [], message: "No employee profile" });
       }
       where.employeeId = session.user.employeeDbId;
-    } else if (employeeId) {
-      where.employeeId = employeeId;
+    } else {
+      if (employeeId) {
+        where.employeeId = employeeId;
+      }
+      if (session.user.companyId) {
+        where.employee = { companyId: session.user.companyId };
+      }
     }
 
     if (from || to) {
