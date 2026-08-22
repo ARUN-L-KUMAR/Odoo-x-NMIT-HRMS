@@ -192,12 +192,13 @@ export async function POST(req: NextRequest) {
     let companyInitials = session.user.companyInitials || "DF";
 
     if (targetCompanyId && targetCompanyId !== session.user.companyId) {
-      const comp = await prisma.company.findUnique({
+      const comp = await (prisma as any).company.findUnique({
         where: { id: targetCompanyId },
         select: { initials: true },
       });
       if (comp?.initials) companyInitials = comp.initials;
     }
+
 
     const loginId = await generateEmployeeLoginId(companyInitials, firstName, lastName, joiningDate);
     const tempPassword = generateTempPassword();
@@ -212,7 +213,7 @@ export async function POST(req: NextRequest) {
     const fixed = Math.max(0, wage - (basic + hra + standard + bonus + lta));
     const pf = Math.round(basic * 0.12);
 
-    const user = await prisma.user.create({
+    const user = await (prisma as any).user.create({
       data: {
         employeeId: loginId,
         email: email.toLowerCase(),
@@ -260,7 +261,7 @@ export async function POST(req: NextRequest) {
     const employeeRecord = (user as any).employee;
 
     // Log activity
-    await prisma.activityLog.create({
+    await (prisma as any).activityLog.create({
       data: {
         userId: session.user.id,
         companyId,
@@ -270,6 +271,7 @@ export async function POST(req: NextRequest) {
         description: `Employee ${firstName} ${lastName} (${loginId}) created by admin`,
       },
     });
+
 
 
     // Send welcome onboarding email in background
@@ -283,24 +285,28 @@ export async function POST(req: NextRequest) {
 
     // Send onboarding alert to organization's configured notification email
     if (companyId) {
-      prisma.company.findUnique({
-        where: { id: companyId },
-        select: { name: true, notificationEmail: true },
-      }).then((comp) => {
-        if (comp?.notificationEmail) {
-          sendOnboardingAdminAlertEmail({
-            to: comp.notificationEmail,
-            employeeName: `${firstName} ${lastName}`,
-            employeeId: loginId,
-            employeeEmail: email,
-            department,
-            designation,
-            adminName: session.user.name || "HR Admin",
-            companyName: comp.name || "Dayflow HRMS",
-          }).catch((err) => console.error("[ADMIN_ONBOARDING_ALERT_EMAIL_ERROR]", err));
-        }
-      }).catch((e) => console.error("[FETCH_COMPANY_EMAIL_ERROR]", e));
+      (prisma as any).company
+        .findUnique({
+          where: { id: companyId },
+          select: { name: true, notificationEmail: true },
+        })
+        .then((comp: { name?: string; notificationEmail?: string | null } | null) => {
+          if (comp?.notificationEmail) {
+            sendOnboardingAdminAlertEmail({
+              to: comp.notificationEmail,
+              employeeName: `${firstName} ${lastName}`,
+              employeeId: loginId,
+              employeeEmail: email,
+              department,
+              designation,
+              adminName: session.user.name || "HR Admin",
+              companyName: comp.name || "Dayflow HRMS",
+            }).catch((err: any) => console.error("[ADMIN_ONBOARDING_ALERT_EMAIL_ERROR]", err));
+          }
+        })
+        .catch((e: any) => console.error("[FETCH_COMPANY_EMAIL_ERROR]", e));
     }
+
 
     return Response.json(
       {

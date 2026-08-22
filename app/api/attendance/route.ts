@@ -64,9 +64,10 @@ export async function GET(req: NextRequest) {
       where.status = status as AttendanceStatus;
     }
 
-    const records = await prisma.attendance.findMany({
+    const records = await (prisma as any).attendance.findMany({
       where,
       include: {
+
         employee: {
           select: {
             id: true,

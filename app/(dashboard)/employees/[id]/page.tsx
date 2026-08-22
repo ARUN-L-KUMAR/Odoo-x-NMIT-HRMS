@@ -453,12 +453,13 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       <SelectValue placeholder="Department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {departments.map((dept) => (
+                      {departments.map((dept: string) => (
                         <SelectItem key={dept} value={dept}>
                           {dept}
                         </SelectItem>
                       ))}
                     </SelectContent>
+
 
                   </Select>
                 ) : (
