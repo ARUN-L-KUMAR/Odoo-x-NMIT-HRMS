@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { comparePassword } from "@/lib/auth/password";
 import { z } from "zod";
 
+import { sendLoginAlertEmail } from "@/lib/mail";
+
 // Accept either email OR employeeId (Login ID) in the identifier field
 const loginSchema = z.object({
   identifier: z.string().min(1, "Login ID or Email is required"),
@@ -78,6 +80,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+
+  events: {
+    async signIn({ user }) {
+      if (user?.email) {
+        try {
+          const userName = (user as any).name || (user as any).employeeId || "User";
+          const employeeId = (user as any).employeeId || user.email;
+          const role = (user as any).role || "EMPLOYEE";
+          const companyName = (user as any).companyName || "Dayflow HRMS";
+
+          // Send asynchronous login alert email
+          sendLoginAlertEmail({
+            to: user.email,
+            userName,
+            employeeId,
+            role,
+            companyName,
+          }).catch((err) => console.error("[SIGNIN_EMAIL_FAILED]", err));
+        } catch (e) {
+          console.error("[SIGNIN_EVENT_ERROR]", e);
+        }
+      }
+    },
+  },
 
   callbacks: {
     async jwt({ token, user, trigger, session }) {

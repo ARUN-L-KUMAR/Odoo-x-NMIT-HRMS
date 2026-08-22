@@ -5,6 +5,7 @@ import { createEmployeeSchema } from "@/lib/validations";
 import { hashPassword } from "@/lib/auth/password";
 import { errorResponse } from "@/lib/utils";
 import { Role } from "@/lib/enums";
+import { sendWelcomeEmail, sendOnboardingAdminAlertEmail } from "@/lib/mail";
 
 const employeeSelect = {
   id: true,
@@ -214,6 +215,36 @@ export async function POST(req: NextRequest) {
         description: `Employee ${firstName} ${lastName} (${loginId}) created by admin`,
       },
     });
+
+    // Send welcome onboarding email in background
+    sendWelcomeEmail({
+      to: email,
+      userName: `${firstName} ${lastName}`,
+      employeeId: loginId,
+      tempPassword,
+      companyName: session.user.companyName || "Dayflow HRMS",
+    }).catch((err) => console.error("[WELCOME_EMAIL_ERROR]", err));
+
+    // Send onboarding alert to organization's configured notification email
+    if (companyId) {
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: { name: true, notificationEmail: true },
+      }).then((comp) => {
+        if (comp?.notificationEmail) {
+          sendOnboardingAdminAlertEmail({
+            to: comp.notificationEmail,
+            employeeName: `${firstName} ${lastName}`,
+            employeeId: loginId,
+            employeeEmail: email,
+            department,
+            designation,
+            adminName: session.user.name || "HR Admin",
+            companyName: comp.name || "Dayflow HRMS",
+          }).catch((err) => console.error("[ADMIN_ONBOARDING_ALERT_EMAIL_ERROR]", err));
+        }
+      }).catch((e) => console.error("[FETCH_COMPANY_EMAIL_ERROR]", e));
+    }
 
     return Response.json(
       {

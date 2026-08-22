@@ -110,6 +110,7 @@ export async function GET() {
         name: company.name,
         initials: company.initials,
         logoUrl: company.logoUrl,
+        notificationEmail: company.notificationEmail,
         createdAt: company.createdAt,
         isSuperAdmin,
         stats: {
@@ -238,7 +239,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await requireAdmin();
     const body = await req.json();
-    const { name, initials, logoUrl } = body;
+    const { name, initials, logoUrl, notificationEmail } = body;
 
     let companyId = session.user.companyId;
     if (!companyId) {
@@ -259,6 +260,7 @@ export async function PATCH(req: NextRequest) {
         ...(name ? { name: name.trim() } : {}),
         ...(initials ? { initials: initials.trim().toUpperCase() } : {}),
         ...(logoUrl !== undefined ? { logoUrl: logoUrl || null } : {}),
+        ...(notificationEmail !== undefined ? { notificationEmail: notificationEmail?.trim() || null } : {}),
       },
     });
 
