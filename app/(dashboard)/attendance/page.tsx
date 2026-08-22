@@ -8,14 +8,12 @@ import {
   Loader2,
   Clock,
   CalendarDays,
-  Search,
   Filter,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { DateRange } from "react-day-picker";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -33,6 +31,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { SearchInput } from "@/components/shared/search-input";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ExportButton } from "@/components/shared/export-button";
 import {
   useMyAttendance,
   useAllAttendance,
@@ -56,12 +58,19 @@ export default function AttendancePage() {
   const isAdmin = session?.user?.role === "ADMIN";
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   const { data: todayAtt } = useTodayAttendance();
-  const { data: myAttendance, isLoading: myLoading } = useMyAttendance({
-    from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
-    to: format(new Date(), "yyyy-MM-dd"),
-  });
+
+  // Build date params — use date range picker if set, otherwise default to last 30 days (employee)
+  const from = dateRange?.from
+    ? format(dateRange.from, "yyyy-MM-dd")
+    : format(subDays(new Date(), 30), "yyyy-MM-dd");
+  const to = dateRange?.to
+    ? format(dateRange.to, "yyyy-MM-dd")
+    : format(new Date(), "yyyy-MM-dd");
+
+  const { data: myAttendance, isLoading: myLoading } = useMyAttendance({ from, to });
   const { data: allAttendance, isLoading: allLoading } = useAllAttendance(
     isAdmin ? {} : undefined
   );
@@ -82,7 +91,16 @@ export default function AttendancePage() {
       `${r.employee?.firstName} ${r.employee?.lastName}`
         .toLowerCase()
         .includes(employeeSearch.toLowerCase());
-    return statusOk && searchOk;
+    // Date range filter for admin (employee is already filtered server-side)
+    const dateOk =
+      !dateRange?.from ||
+      !dateRange?.to ||
+      !isAdmin ||
+      (() => {
+        const d = new Date(r.attendanceDate);
+        return d >= dateRange.from! && d <= dateRange.to!;
+      })();
+    return statusOk && searchOk && dateOk;
   });
 
   return (
@@ -99,38 +117,62 @@ export default function AttendancePage() {
           </p>
         </div>
 
-        {/* Employee check-in/out */}
-        {!isAdmin && (
-          <div className="flex gap-2">
-            <Button
-              onClick={() => checkIn.mutate()}
-              disabled={!canCheckIn || checkIn.isPending}
-              size="sm"
-              className="gap-2"
-            >
-              {checkIn.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogIn className="h-4 w-4" />
-              )}
-              Check In
-            </Button>
-            <Button
-              onClick={() => checkOut.mutate()}
-              disabled={!canCheckOut || checkOut.isPending}
-              size="sm"
-              variant="outline"
-              className="gap-2"
-            >
-              {checkOut.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogOut className="h-4 w-4" />
-              )}
-              Check Out
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Export CSV */}
+          <ExportButton
+            data={filtered ?? []}
+            filename="attendance"
+            columns={[
+              ...(isAdmin
+                ? [
+                    {
+                      header: "Employee",
+                      accessor: (r: NonNullable<typeof filtered>[number]) =>
+                        `${r.employee?.firstName} ${r.employee?.lastName}`,
+                    },
+                  ]
+                : []),
+              { header: "Date", accessor: (r: NonNullable<typeof filtered>[number]) => formatDate(r.attendanceDate) },
+              { header: "Check In", accessor: (r: NonNullable<typeof filtered>[number]) => r.checkIn ? formatTime(r.checkIn) : "" },
+              { header: "Check Out", accessor: (r: NonNullable<typeof filtered>[number]) => r.checkOut ? formatTime(r.checkOut) : "" },
+              { header: "Worked (min)", accessor: "workedMinutes" as const },
+              { header: "Status", accessor: "status" as const },
+            ]}
+          />
+
+          {/* Employee check-in/out */}
+          {!isAdmin && (
+            <>
+              <Button
+                onClick={() => checkIn.mutate()}
+                disabled={!canCheckIn || checkIn.isPending}
+                size="sm"
+                className="gap-2"
+              >
+                {checkIn.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogIn className="h-4 w-4" />
+                )}
+                Check In
+              </Button>
+              <Button
+                onClick={() => checkOut.mutate()}
+                disabled={!canCheckOut || checkOut.isPending}
+                size="sm"
+                variant="outline"
+                className="gap-2"
+              >
+                {checkOut.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+                Check Out
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Today's status (employee only) */}
@@ -193,16 +235,22 @@ export default function AttendancePage() {
           </SelectContent>
         </Select>
 
+        {/* Date range picker */}
+        <DatePickerWithRange
+          date={dateRange}
+          setDate={setDateRange}
+          placeholder="Filter by date range"
+          triggerClassName="w-[240px]"
+        />
+
         {isAdmin && (
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search employee..."
-              value={employeeSearch}
-              onChange={(e) => setEmployeeSearch(e.target.value)}
-              className="pl-8 h-9"
-            />
-          </div>
+          <SearchInput
+            id="attendance-search"
+            value={employeeSearch}
+            onChange={setEmployeeSearch}
+            placeholder="Search employee..."
+            className="flex-1 min-w-48"
+          />
         )}
       </div>
 
@@ -216,10 +264,15 @@ export default function AttendancePage() {
               ))}
             </div>
           ) : !filtered || filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <CalendarDays className="h-8 w-8 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">No attendance records found</p>
-            </div>
+            <EmptyState
+              icon={CalendarDays}
+              title="No attendance records found"
+              description={
+                statusFilter !== "ALL" || dateRange
+                  ? "Try adjusting your filters"
+                  : "Attendance records will appear here once employees check in"
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>

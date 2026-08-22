@@ -9,6 +9,7 @@ import {
   employeeApi,
 } from "@/lib/api/client";
 import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/utils";
 
 // ─── Keys ─────────────────────────────────────────────────────────────────────
 export const queryKeys = {
@@ -70,7 +71,7 @@ export function useUpdateEmployee() {
       toast.success("Profile updated successfully");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to update profile");
+      toast.error(extractErrorMessage(error));
     },
   });
 }
@@ -85,7 +86,7 @@ export function useCreateEmployee() {
       toast.success("Employee created successfully");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to create employee");
+      toast.error(extractErrorMessage(error));
     },
   });
 }
@@ -124,7 +125,7 @@ export function useCheckIn() {
       toast.success("Checked in successfully! 👋");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Check-in failed");
+      toast.error(extractErrorMessage(error));
     },
   });
 }
@@ -140,7 +141,7 @@ export function useCheckOut() {
       toast.success("Checked out successfully! 👋");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Check-out failed");
+      toast.error(extractErrorMessage(error));
     },
   });
 }
@@ -185,7 +186,7 @@ export function useCreateLeave() {
       toast.success("Leave request submitted!");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to submit leave request");
+      toast.error(extractErrorMessage(error));
     },
   });
 }
@@ -202,7 +203,7 @@ export function useApproveLeave() {
       toast.success("Leave approved ✅");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to approve leave");
+      toast.error(extractErrorMessage(error));
     },
   });
 }
@@ -218,7 +219,7 @@ export function useRejectLeave() {
       toast.success("Leave rejected");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to reject leave");
+      toast.error(extractErrorMessage(error));
     },
   });
 }
@@ -248,7 +249,7 @@ export function useUpdateSalary() {
       toast.success("Salary updated successfully ✅");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to update salary");
+      toast.error(extractErrorMessage(error));
     },
   });
 }

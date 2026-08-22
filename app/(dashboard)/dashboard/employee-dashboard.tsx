@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatCard } from "@/components/shared/stat-card";
 import {
   useEmployeeDashboard,
   useCheckIn,
@@ -123,87 +124,38 @@ export default function EmployeeDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Today</p>
-                <p className="text-lg font-bold">
-                  {todayAttendance?.status
-                    ? ATTENDANCE_STATUS_CONFIG[todayAttendance.status].label
-                    : "Not yet"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {todayAttendance?.checkIn
-                    ? `In: ${formatTime(todayAttendance.checkIn)}`
-                    : "Not checked in"}
-                </p>
-              </div>
-              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Work Hours</p>
-                <p className="text-lg font-bold">
-                  {todayAttendance?.workedMinutes
-                    ? formatWorkedTime(todayAttendance.workedMinutes)
-                    : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {todayAttendance?.checkOut
-                    ? `Out: ${formatTime(todayAttendance.checkOut)}`
-                    : "In progress"}
-                </p>
-              </div>
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <Timer className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Leave Balance</p>
-                <p className="text-lg font-bold">
-                  {data?.leaveBalances?.[0]?.remaining ?? "—"} days
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {data?.leaveBalances?.[0]?.leaveTypeName || "Paid Leave"}
-                </p>
-              </div>
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                <CalendarDays className="h-5 w-5 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Net Salary</p>
-                <p className="text-lg font-bold">
-                  {salary ? formatCurrency(Number(salary.netSalary)) : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Per month</p>
-              </div>
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <Wallet className="h-5 w-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          label="Today"
+          value={todayAttendance?.status ? ATTENDANCE_STATUS_CONFIG[todayAttendance.status].label : "Not yet"}
+          icon={CheckCircle2}
+          iconColor="text-green-600"
+          iconBg="bg-green-100 dark:bg-green-900/30"
+          description={todayAttendance?.checkIn ? `In: ${formatTime(todayAttendance.checkIn)}` : "Not checked in"}
+        />
+        <StatCard
+          label="Work Hours"
+          value={todayAttendance?.workedMinutes ? formatWorkedTime(todayAttendance.workedMinutes) : "—"}
+          icon={Timer}
+          iconColor="text-blue-600"
+          iconBg="bg-blue-100 dark:bg-blue-900/30"
+          description={todayAttendance?.checkOut ? `Out: ${formatTime(todayAttendance.checkOut)}` : "In progress"}
+        />
+        <StatCard
+          label="Leave Balance"
+          value={`${data?.leaveBalances?.[0]?.remaining ?? "—"} days`}
+          icon={CalendarDays}
+          iconColor="text-purple-600"
+          iconBg="bg-purple-100 dark:bg-purple-900/30"
+          description={data?.leaveBalances?.[0]?.leaveTypeName || "Paid Leave"}
+        />
+        <StatCard
+          label="Net Salary"
+          value={salary ? formatCurrency(Number(salary.netSalary)) : "—"}
+          icon={Wallet}
+          iconColor="text-amber-600"
+          iconBg="bg-amber-100 dark:bg-amber-900/30"
+          description="Per month"
+        />
       </div>
 
       {/* Bottom Row */}

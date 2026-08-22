@@ -4,13 +4,13 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { DollarSign, Edit2, Loader2, Search } from "lucide-react";
+import { DollarSign, Edit2, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -26,6 +26,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SearchInput } from "@/components/shared/search-input";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ExportButton } from "@/components/shared/export-button";
 import { useMyPayroll, useAllPayroll, useUpdateSalary } from "@/hooks";
 import { salarySchema, type SalaryInput } from "@/lib/validations";
 import { formatCurrency, formatCurrencyCompact, getInitials } from "@/lib/utils";
@@ -175,19 +178,32 @@ export default function PayrollPage() {
             Manage employee salary structures
           </p>
         </div>
+        <ExportButton
+          data={filtered ?? []}
+          filename="payroll"
+          columns={[
+            { header: "Employee", accessor: (r) => `${r.employee?.firstName} ${r.employee?.lastName}` },
+            { header: "Department", accessor: (r) => r.employee?.department ?? "" },
+            { header: "Designation", accessor: (r) => r.employee?.designation ?? "" },
+            { header: "Basic Salary", accessor: (r) => Number(r.basicSalary) },
+            { header: "HRA", accessor: (r) => Number(r.hra) },
+            { header: "Allowances", accessor: (r) => Number(r.allowances) },
+            { header: "Gross Salary", accessor: (r) => Number(r.grossSalary) },
+            { header: "Deductions", accessor: (r) => Number(r.deductions) },
+            { header: "PF", accessor: (r) => Number(r.pf) },
+            { header: "Tax", accessor: (r) => Number(r.tax) },
+            { header: "Net Salary", accessor: (r) => Number(r.netSalary) },
+          ]}
+        />
       </div>
 
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search employee..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9"
-          />
-        </div>
-      </div>
+      <SearchInput
+        id="payroll-search"
+        value={search}
+        onChange={setSearch}
+        placeholder="Search employee..."
+        className="max-w-sm"
+      />
 
       <Card>
         <CardContent className="p-0">
@@ -196,10 +212,11 @@ export default function PayrollPage() {
               {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           ) : !filtered || filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <DollarSign className="h-8 w-8 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">No payroll records found</p>
-            </div>
+            <EmptyState
+              icon={DollarSign}
+              title="No payroll records found"
+              description={search ? "Try a different search term" : "Salary structures will appear here once assigned"}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>

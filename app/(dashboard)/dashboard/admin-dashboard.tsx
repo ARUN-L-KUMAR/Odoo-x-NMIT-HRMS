@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatCard } from "@/components/shared/stat-card";
 import {
   useAdminDashboard,
   useApproveLeave,
@@ -66,44 +67,6 @@ export default function AdminDashboardPage() {
 
   const d = data as AdminDashboardData | undefined;
 
-  const kpiCards = [
-    {
-      label: "Total Employees",
-      value: d?.totalEmployees ?? 0,
-      icon: Users,
-      color: "text-primary",
-      bg: "bg-primary/10",
-    },
-    {
-      label: "Present Today",
-      value: d?.presentToday ?? 0,
-      icon: UserCheck,
-      color: "text-green-600",
-      bg: "bg-green-100 dark:bg-green-900/20",
-    },
-    {
-      label: "Absent Today",
-      value: d?.absentToday ?? 0,
-      icon: UserX,
-      color: "text-red-600",
-      bg: "bg-red-100 dark:bg-red-900/20",
-    },
-    {
-      label: "On Leave",
-      value: d?.onLeaveToday ?? 0,
-      icon: CalendarOff,
-      color: "text-amber-600",
-      bg: "bg-amber-100 dark:bg-amber-900/20",
-    },
-    {
-      label: "Pending Requests",
-      value: d?.pendingLeaveRequests ?? 0,
-      icon: ClipboardList,
-      color: "text-purple-600",
-      bg: "bg-purple-100 dark:bg-purple-900/20",
-    },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -119,23 +82,11 @@ export default function AdminDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {kpiCards.map((kpi) => (
-          <Card key={kpi.label}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">
-                    {kpi.label}
-                  </p>
-                  <p className="text-2xl font-bold">{kpi.value}</p>
-                </div>
-                <div className={`p-2 rounded-lg ${kpi.bg}`}>
-                  <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        <StatCard label="Total Employees" value={d?.totalEmployees ?? 0} icon={Users} iconColor="text-primary" iconBg="bg-primary/10" />
+        <StatCard label="Present Today" value={d?.presentToday ?? 0} icon={UserCheck} iconColor="text-green-600" iconBg="bg-green-100 dark:bg-green-900/20" />
+        <StatCard label="Absent Today" value={d?.absentToday ?? 0} icon={UserX} iconColor="text-red-600" iconBg="bg-red-100 dark:bg-red-900/20" />
+        <StatCard label="On Leave" value={d?.onLeaveToday ?? 0} icon={CalendarOff} iconColor="text-amber-600" iconBg="bg-amber-100 dark:bg-amber-900/20" />
+        <StatCard label="Pending Requests" value={d?.pendingLeaveRequests ?? 0} icon={ClipboardList} iconColor="text-purple-600" iconBg="bg-purple-100 dark:bg-purple-900/20" />
       </div>
 
       {/* Charts Row */}
