@@ -9,12 +9,14 @@ export async function GET(req: NextRequest) {
     const session = await requireAuth();
     const { searchParams } = new URL(req.url);
 
-    const isAdmin = session.user.role === Role.ADMIN;
+    const isSuperAdmin = session.user.role === Role.SUPER_ADMIN;
+    const isAdmin = session.user.role === Role.ADMIN || isSuperAdmin;
     const date = searchParams.get("date");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const employeeId = searchParams.get("employeeId");
     const status = searchParams.get("status");
+    const filterCompanyId = searchParams.get("companyId");
 
     const where: any = {};
 
@@ -28,8 +30,12 @@ export async function GET(req: NextRequest) {
       if (employeeId) {
         where.employeeId = employeeId;
       }
-      if (session.user.companyId) {
-        where.employee = { companyId: session.user.companyId };
+      if (isSuperAdmin) {
+        if (filterCompanyId && filterCompanyId !== "ALL") {
+          where.employee = { ...(where.employee || {}), companyId: filterCompanyId };
+        }
+      } else if (session.user.companyId) {
+        where.employee = { ...(where.employee || {}), companyId: session.user.companyId };
       }
     }
 
@@ -69,6 +75,15 @@ export async function GET(req: NextRequest) {
             profileImage: true,
             department: true,
             designation: true,
+            companyId: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                initials: true,
+                logoUrl: true,
+              },
+            },
             user: {
               select: {
                 employeeId: true,

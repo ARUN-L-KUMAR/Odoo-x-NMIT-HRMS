@@ -21,6 +21,15 @@ const employeeSelect = {
   employmentStatus: true,
   profileImage: true,
   createdAt: true,
+  companyId: true,
+  company: {
+    select: {
+      id: true,
+      name: true,
+      initials: true,
+      logoUrl: true,
+    },
+  },
   user: {
     select: {
       id: true,
@@ -82,7 +91,7 @@ function generateTempPassword(): string {
   return `${rand(upper)}${base}${rand(digits)}${rand(symbols)}`;
 }
 
-// GET /api/employees — admin: all employees in company, employee: all in company (for directory)
+// GET /api/employees — Super Admin: all employees across all companies with org name; Admin: tenant employees
 export async function GET(req: NextRequest) {
   try {
     const session = await requireAuth();
@@ -90,13 +99,21 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
     const department = searchParams.get("department");
     const status = searchParams.get("status");
-    const isAdmin = session.user.role === Role.ADMIN;
+    const filterCompanyId = searchParams.get("companyId");
+    const isSuperAdmin = session.user.role === Role.SUPER_ADMIN;
+    const isAdmin = session.user.role === Role.ADMIN || isSuperAdmin;
     const companyId = session.user.companyId;
 
     const where: any = {};
-    if (companyId) {
+
+    if (isSuperAdmin) {
+      if (filterCompanyId && filterCompanyId !== "ALL") {
+        where.companyId = filterCompanyId;
+      }
+    } else if (companyId) {
       where.companyId = companyId;
     }
+
     if (department) where.department = department;
     if (status && isAdmin) where.employmentStatus = status;
     if (search) {

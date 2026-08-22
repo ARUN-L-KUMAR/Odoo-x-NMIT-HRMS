@@ -34,40 +34,55 @@ export async function requireAuth() {
 }
 
 /**
- * Require a specific role.
+ * Require a specific role or array of roles.
  */
-export async function requireRole(role: Role) {
+export async function requireRole(roles: Role | Role[]) {
   const session = await requireAuth();
-  if (session.user.role !== role) {
+  const allowed = Array.isArray(roles) ? roles : [roles];
+  if (!allowed.includes(session.user.role as Role)) {
     throw new Error("FORBIDDEN");
   }
   return session;
 }
 
 /**
- * Require admin role.
+ * Require admin or super admin role.
  */
 export async function requireAdmin() {
-  return requireRole(Role.ADMIN);
+  return requireRole([Role.ADMIN, Role.SUPER_ADMIN]);
 }
 
 /**
- * Check if user is admin.
+ * Require super admin role only.
+ */
+export async function requireSuperAdmin() {
+  return requireRole(Role.SUPER_ADMIN);
+}
+
+/**
+ * Check if user is admin or super admin.
  */
 export function isAdmin(role: string | undefined | null): boolean {
-  return role === Role.ADMIN;
+  return role === Role.ADMIN || role === Role.SUPER_ADMIN;
+}
+
+/**
+ * Check if user is super admin.
+ */
+export function isSuperAdmin(role: string | undefined | null): boolean {
+  return role === Role.SUPER_ADMIN;
 }
 
 /**
  * Check if the current user can access a specific employee's resource.
- * Admin can access all, employee can only access their own.
+ * Admin/SuperAdmin can access all, employee can only access their own.
  */
 export function canAccessEmployee(
   requesterRole: string,
   requesterEmployeeDbId: string | null | undefined,
   targetEmployeeId: string
 ): boolean {
-  if (requesterRole === Role.ADMIN) return true;
+  if (requesterRole === Role.ADMIN || requesterRole === Role.SUPER_ADMIN) return true;
   return requesterEmployeeDbId === targetEmployeeId;
 }
 

@@ -11,6 +11,7 @@ interface Employee {
   department?: string | null;
   profileImage?: string | null;
   employmentStatus?: string;
+  company?: { name: string; initials: string; logoUrl?: string | null } | null;
 }
 
 interface EmployeeGridProps {
@@ -20,6 +21,7 @@ interface EmployeeGridProps {
   emptyMessage?: string;
   /** Map of employee DB id → today's attendance status */
   attendanceStatusMap?: Record<string, AttendanceStatus>;
+  showCompany?: boolean;
 }
 
 export function EmployeeGrid({
@@ -28,6 +30,7 @@ export function EmployeeGrid({
   onCardClick,
   emptyMessage = "No employees found.",
   attendanceStatusMap = {},
+  showCompany = false,
 }: EmployeeGridProps) {
   if (isLoading) {
     return (
@@ -35,7 +38,7 @@ export function EmployeeGrid({
         {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
           <div key={i} className="flex flex-col items-center gap-3 rounded-2xl border bg-card p-5">
             <div className="relative">
-              <Skeleton className="h-20 w-20 rounded-full" />
+               <Skeleton className="h-20 w-20 rounded-full" />
               <Skeleton className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full" />
             </div>
             <Skeleton className="h-4 w-24" />
@@ -68,6 +71,8 @@ export function EmployeeGrid({
           profileImage={emp.profileImage}
           employmentStatus={emp.employmentStatus}
           attendanceStatus={attendanceStatusMap[emp.id] ?? "UNKNOWN"}
+          company={emp.company}
+          showCompany={showCompany}
           onClick={onCardClick ? () => onCardClick(emp.id) : undefined}
         />
       ))}

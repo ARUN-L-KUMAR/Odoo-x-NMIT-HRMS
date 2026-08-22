@@ -13,7 +13,8 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const companyFilter = session.user.companyId ? { companyId: session.user.companyId } : {};
+    const isSuperAdmin = session.user.role === "SUPER_ADMIN";
+    const companyFilter = (!isSuperAdmin && session.user.companyId) ? { companyId: session.user.companyId } : {};
 
     const [allEmployees, todayRecords] = await Promise.all([
       prisma.employee.findMany({

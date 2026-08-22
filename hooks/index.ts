@@ -44,7 +44,7 @@ export function useAdminDashboard() {
 }
 
 // ─── Employees ────────────────────────────────────────────────────────────────
-export function useEmployees(params?: { search?: string; department?: string; status?: string }) {
+export function useEmployees(params?: { search?: string; department?: string; status?: string; companyId?: string }) {
   return useQuery({
     queryKey: queryKeys.employees(params),
     queryFn: () => employeeApi.getAll(params),

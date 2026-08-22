@@ -52,6 +52,12 @@ export const ACTIVITY_LABELS: Record<string, string> = {
 };
 
 export const DEMO_ACCOUNTS = {
+  superAdmin: {
+    email: "superadmin@dayflow.demo",
+    password: "SuperAdmin@123",
+    role: "Super Admin",
+    employeeId: "SUPER001",
+  },
   admin: {
     email: "admin@dayflow.demo",
     password: "Admin@123",

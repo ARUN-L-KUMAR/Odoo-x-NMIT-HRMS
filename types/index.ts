@@ -32,7 +32,7 @@ export interface Company {
 
 // ─── Enums (mirrored from Prisma for client use) ───────────────────────────────
 
-export type Role = "ADMIN" | "EMPLOYEE";
+export type Role = "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "HALF_DAY" | "LEAVE";
 export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type EmploymentStatus = "ACTIVE" | "INACTIVE" | "ON_NOTICE" | "TERMINATED";
@@ -88,6 +88,13 @@ export interface Employee {
   panNumber?: string | null;
   uanNumber?: string | null;
   createdAt: string;
+  companyId?: string | null;
+  company?: {
+    id: string;
+    name: string;
+    initials: string;
+    logoUrl?: string | null;
+  } | null;
   user: {
     id: string;
     employeeId: string;

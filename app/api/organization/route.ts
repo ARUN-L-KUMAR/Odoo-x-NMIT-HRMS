@@ -3,7 +3,19 @@ import { prisma } from "@/lib/db";
 import { requireAuth, requireAdmin } from "@/lib/auth/permissions";
 import { Role } from "@/lib/enums";
 
-// GET /api/organization — Return current tenant organization details and stats
+function getCompanyInitials(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) {
+    return words[0].substring(0, 2).toUpperCase();
+  }
+  return words
+    .slice(0, 3)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
+// GET /api/organization — Return current tenant details, all organizations list, and stats
 export async function GET() {
   try {
     const session = await requireAuth();
@@ -16,19 +28,20 @@ export async function GET() {
         include: {
           leaveTypes: {
             where: { isActive: true },
-            select: { id: true, name: true, isPaid: true, annualLimit: true },
+            select: { id: true, name: true, description: true, isPaid: true, annualLimit: true },
+            orderBy: { name: "asc" },
           },
         },
       });
     }
 
-    // Fallback if user doesn't have companyId attached yet
     if (!company) {
       company = await prisma.company.findFirst({
         include: {
           leaveTypes: {
             where: { isActive: true },
-            select: { id: true, name: true, isPaid: true, annualLimit: true },
+            select: { id: true, name: true, description: true, isPaid: true, annualLimit: true },
+            orderBy: { name: "asc" },
           },
         },
       });
@@ -36,12 +49,30 @@ export async function GET() {
 
     if (!company) {
       return Response.json(
-        { success: false, error: { code: "NOT_FOUND", message: "Organization not found" } },
+        { success: false, error: { code: "NOT_FOUND", message: "No organization found" } },
         { status: 404 }
       );
     }
 
     const currentCompanyId = company.id;
+    const isSuperAdmin = session.user.role === Role.SUPER_ADMIN;
+
+    // Fetch all companies ONLY for SUPER_ADMIN (Tenant admins only see their own organization)
+    const allOrganizations = isSuperAdmin
+      ? await prisma.company.findMany({
+          select: {
+            id: true,
+            name: true,
+            initials: true,
+            logoUrl: true,
+            createdAt: true,
+            _count: {
+              select: { employees: true },
+            },
+          },
+          orderBy: { name: "asc" },
+        })
+      : [];
 
     // Fetch tenant-scoped stats
     const [totalEmployees, activeEmployees, departmentGroups, recentLogs] = await Promise.all([
@@ -79,6 +110,7 @@ export async function GET() {
         initials: company.initials,
         logoUrl: company.logoUrl,
         createdAt: company.createdAt,
+        isSuperAdmin,
         stats: {
           totalEmployees,
           activeEmployees,
@@ -87,6 +119,14 @@ export async function GET() {
         },
         leaveTypes: company.leaveTypes,
         recentActivity: recentLogs,
+        allOrganizations: allOrganizations.map((org) => ({
+          id: org.id,
+          name: org.name,
+          initials: org.initials,
+          logoUrl: org.logoUrl,
+          employeeCount: org._count.employees,
+          createdAt: org.createdAt,
+        })),
       },
       message: "OK",
     });
@@ -105,6 +145,93 @@ export async function GET() {
   }
 }
 
+// POST /api/organization — Create a new organization
+export async function POST(req: NextRequest) {
+  try {
+    const session = await requireAdmin();
+    const body = await req.json();
+    const { name, initials, logoUrl } = body;
+
+    if (!name || !name.trim()) {
+      return Response.json(
+        { success: false, error: { code: "VALIDATION_ERROR", message: "Organization name is required" } },
+        { status: 422 }
+      );
+    }
+
+    const orgInitials = initials?.trim()
+      ? initials.trim().toUpperCase().slice(0, 4)
+      : getCompanyInitials(name);
+
+    // Create company + default leave policies
+    const company = await prisma.$transaction(async (tx: any) => {
+      const created = await tx.company.create({
+        data: {
+          name: name.trim(),
+          initials: orgInitials,
+          logoUrl: logoUrl || null,
+        },
+      });
+
+      const defaultLeaveTypes = [
+        { name: "Paid Time Off (PTO)", description: "Standard paid vacation days", isPaid: true, annualLimit: 18 },
+        { name: "Sick Leave", description: "Medical and health-related leave", isPaid: true, annualLimit: 12 },
+        { name: "Casual Leave", description: "Short planned personal time off", isPaid: true, annualLimit: 10 },
+        { name: "Unpaid Leave", description: "Leave without pay", isPaid: false, annualLimit: null },
+      ];
+
+      for (const lt of defaultLeaveTypes) {
+        await tx.leaveType.create({
+          data: {
+            ...lt,
+            companyId: created.id,
+          },
+        });
+      }
+
+      await tx.activityLog.create({
+        data: {
+          userId: session.user.id,
+          companyId: created.id,
+          action: "ORGANIZATION_CREATED",
+          entityType: "company",
+          entityId: created.id,
+          description: `Organization "${name.trim()}" was created`,
+        },
+      });
+
+      return created;
+    });
+
+    return Response.json(
+      {
+        success: true,
+        data: company,
+        message: "Organization created successfully",
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return Response.json(
+        {
+          success: false,
+          error: {
+            code: error.message,
+            message: error.message === "UNAUTHORIZED" ? "Not authenticated" : "Forbidden",
+          },
+        },
+        { status: error.message === "UNAUTHORIZED" ? 401 : 403 }
+      );
+    }
+    console.error("[ORGANIZATION_POST]", error);
+    return Response.json(
+      { success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH /api/organization — Admin updates organization profile
 export async function PATCH(req: NextRequest) {
   try {
@@ -115,7 +242,7 @@ export async function PATCH(req: NextRequest) {
     let companyId = session.user.companyId;
     if (!companyId) {
       const first = await prisma.company.findFirst();
-      companyId = first?.id;
+      companyId = first?.id ?? null;
     }
 
     if (!companyId) {
@@ -165,6 +292,85 @@ export async function PATCH(req: NextRequest) {
       );
     }
     console.error("[ORGANIZATION_PATCH]", error);
+    return Response.json(
+      { success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/organization — Delete an organization
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await requireAdmin();
+    const { searchParams } = new URL(req.url);
+    const targetOrgId = searchParams.get("id") || session.user.companyId;
+
+    if (!targetOrgId) {
+      return Response.json(
+        { success: false, error: { code: "VALIDATION_ERROR", message: "Organization ID is required" } },
+        { status: 400 }
+      );
+    }
+
+    // Ensure we don't delete if it's the only company
+    const count = await prisma.company.count();
+    if (count <= 1) {
+      return Response.json(
+        { success: false, error: { code: "CONFLICT", message: "Cannot delete the sole organization in the system" } },
+        { status: 409 }
+      );
+    }
+
+    const company = await prisma.company.findUnique({ where: { id: targetOrgId } });
+    if (!company) {
+      return Response.json(
+        { success: false, error: { code: "NOT_FOUND", message: "Organization not found" } },
+        { status: 404 }
+      );
+    }
+
+    // Cascade delete company records
+    await prisma.company.delete({
+      where: { id: targetOrgId },
+    });
+
+    // If current active organization was deleted, switch user to another company
+    if (session.user.companyId === targetOrgId) {
+      const anotherCompany = await prisma.company.findFirst();
+      if (anotherCompany) {
+        await prisma.user.update({
+          where: { id: session.user.id },
+          data: { companyId: anotherCompany.id },
+        });
+        if (session.user.employeeDbId) {
+          await prisma.employee.update({
+            where: { id: session.user.employeeDbId },
+            data: { companyId: anotherCompany.id || null },
+          });
+        }
+      }
+    }
+
+    return Response.json({
+      success: true,
+      data: null,
+      message: `Organization "${company.name}" was successfully deleted`,
+    });
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return Response.json(
+        {
+          success: false,
+          error: {
+            code: error.message,
+            message: error.message === "UNAUTHORIZED" ? "Not authenticated" : "Forbidden",
+          },
+        },
+        { status: error.message === "UNAUTHORIZED" ? 401 : 403 }
+      );
+    }
+    console.error("[ORGANIZATION_DELETE]", error);
     return Response.json(
       { success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } },
       { status: 500 }
