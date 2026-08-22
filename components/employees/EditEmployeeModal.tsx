@@ -24,9 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImageUpload } from "@/components/shared/image-upload";
-import { useUpdateEmployee } from "@/hooks";
+import { useUpdateEmployee, useDepartments } from "@/hooks";
 import { updateEmployeeSchema, type UpdateEmployeeInput } from "@/lib/validations";
-import { DEPARTMENTS } from "@/lib/constants";
 import type { Employee } from "@/types";
 import {
   User,
@@ -41,6 +40,7 @@ import {
   X,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useSession } from "next-auth/react";
 
 interface EditEmployeeModalProps {
   open: boolean;
@@ -53,7 +53,10 @@ export function EditEmployeeModal({
   onOpenChange,
   employee,
 }: EditEmployeeModalProps) {
+  const { data: session } = useSession();
   const updateEmployee = useUpdateEmployee();
+  const { data: departments = [] } = useDepartments((employee as any)?.companyId || undefined);
+
   const [activeTab, setActiveTab] = useState<string>("basic");
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
@@ -263,12 +266,13 @@ export function EditEmployeeModal({
                         <SelectValue placeholder="Select Department" />
                       </SelectTrigger>
                       <SelectContent>
-                        {DEPARTMENTS.map((dept) => (
+                        {departments.map((dept) => (
                           <SelectItem key={dept} value={dept}>
                             {dept}
                           </SelectItem>
                         ))}
                       </SelectContent>
+
                     </Select>
                   </div>
 

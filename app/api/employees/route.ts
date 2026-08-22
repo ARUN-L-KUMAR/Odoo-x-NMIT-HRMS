@@ -158,31 +158,64 @@ export async function POST(req: NextRequest) {
     const session = await requireAdmin();
     const body = await req.json();
 
-    // Remove employeeId and password from body — system generates them
-    const { firstName, lastName, email, phone, designation, department, joiningDate, employmentStatus, profileImage } = body;
+    // Extract employee data including optional compensation & location/manager
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      designation,
+      department,
+      joiningDate,
+      employmentStatus,
+      profileImage,
+      location,
+      manager,
+      companyId: targetCompanyId,
+      monthlyWage,
+      workingDaysPerWeek,
+      workingHoursPerDay,
+    } = body;
 
     // Basic validation
     if (!firstName || !lastName || !email) {
       return errorResponse("VALIDATION_ERROR", "firstName, lastName, and email are required", {}, 422);
     }
 
-    const existing = await prisma.user.findFirst({ where: { email } });
+    const existing = await prisma.user.findFirst({ where: { email: email.toLowerCase() } });
     if (existing) {
       return errorResponse("CONFLICT", "Email already exists", { email: ["Email in use"] }, 409);
     }
 
     // Auto-generate Login ID using company initials and temp password
-    const companyInitials = session.user.companyInitials || "DF";
-    const companyId = session.user.companyId || null;
+    const companyId = targetCompanyId || session.user.companyId || null;
+    let companyInitials = session.user.companyInitials || "DF";
+
+    if (targetCompanyId && targetCompanyId !== session.user.companyId) {
+      const comp = await prisma.company.findUnique({
+        where: { id: targetCompanyId },
+        select: { initials: true },
+      });
+      if (comp?.initials) companyInitials = comp.initials;
+    }
 
     const loginId = await generateEmployeeLoginId(companyInitials, firstName, lastName, joiningDate);
     const tempPassword = generateTempPassword();
     const passwordHash = await hashPassword(tempPassword);
 
+    const wage = Number(monthlyWage) || 50000;
+    const basic = Math.round(wage * 0.5);
+    const hra = Math.round(basic * 0.5);
+    const standard = Math.round(basic * 0.1667);
+    const bonus = Math.round(basic * 0.0833);
+    const lta = Math.round(basic * 0.0833);
+    const fixed = Math.max(0, wage - (basic + hra + standard + bonus + lta));
+    const pf = Math.round(basic * 0.12);
+
     const user = await prisma.user.create({
       data: {
         employeeId: loginId,
-        email,
+        email: email.toLowerCase(),
         passwordHash,
         role: Role.EMPLOYEE,
         mustChangePassword: true, // force password change on first login
@@ -195,14 +228,36 @@ export async function POST(req: NextRequest) {
             phone: phone || null,
             designation: designation || null,
             department: department || null,
+            location: location || "Office",
+            manager: manager || null,
             joiningDate: joiningDate ? new Date(joiningDate) : undefined,
             employmentStatus: employmentStatus || "ACTIVE",
             profileImage: profileImage || null,
+            salaryStructure: {
+              create: {
+                monthlyWage: wage,
+                yearlyWage: wage * 12,
+                basicSalary: basic,
+                hra,
+                standardAllowance: standard,
+                performanceBonus: bonus,
+                leaveTravelAllowance: lta,
+                fixedAllowance: fixed,
+                employeePf: pf,
+                employerPf: pf,
+                professionalTax: 200,
+                workingDaysPerWeek: Number(workingDaysPerWeek) || 5,
+                workingHoursPerDay: Number(workingHoursPerDay) || 8,
+                breakTimeHours: 1,
+              },
+            },
           },
         },
       },
       include: { employee: { select: employeeSelect } },
     });
+
+    const employeeRecord = (user as any).employee;
 
     // Log activity
     await prisma.activityLog.create({
@@ -211,10 +266,11 @@ export async function POST(req: NextRequest) {
         companyId,
         action: "EMPLOYEE_CREATED",
         entityType: "employee",
-        entityId: user.employee?.id,
+        entityId: employeeRecord?.id,
         description: `Employee ${firstName} ${lastName} (${loginId}) created by admin`,
       },
     });
+
 
     // Send welcome onboarding email in background
     sendWelcomeEmail({
@@ -250,7 +306,7 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         data: {
-          employee: user.employee,
+          employee: employeeRecord,
           // Return generated credentials so admin can share with employee
           credentials: {
             loginId,
@@ -258,6 +314,7 @@ export async function POST(req: NextRequest) {
             email,
           },
         },
+
         message: "Employee created",
       },
       { status: 201 }

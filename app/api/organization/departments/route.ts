@@ -1,8 +1,58 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth/permissions";
+import { requireAuth, requireAdmin } from "@/lib/auth/permissions";
+
+// GET /api/organization/departments — Get distinct departments for the tenant from DB
+export async function GET(req: NextRequest) {
+  try {
+    const session = await requireAuth();
+    const { searchParams } = new URL(req.url);
+    const targetCompanyId = searchParams.get("companyId");
+    const companyId = targetCompanyId || session.user.companyId;
+
+    // Group employees by department for this organization
+    const grouped = await prisma.employee.groupBy({
+      by: ["department"],
+      where: {
+        ...(companyId ? { companyId } : {}),
+        department: { not: null },
+      },
+      _count: { id: true },
+      orderBy: { department: "asc" },
+    });
+
+    const activeDepts = grouped
+      .map((g) => g.department?.trim())
+      .filter((d): d is string => !!d && d.length > 0);
+
+    const fallback = [
+      "Engineering",
+      "Design",
+      "Human Resources",
+      "Marketing",
+      "Sales",
+      "Finance",
+    ];
+
+    const allDepts = Array.from(
+      new Set([...activeDepts, ...(activeDepts.length === 0 ? fallback : [])])
+    ).sort();
+
+    return Response.json({
+      success: true,
+      data: allDepts,
+      message: "OK",
+    });
+  } catch (error: any) {
+    return Response.json(
+      { success: false, error: { code: "INTERNAL_ERROR", message: error.message } },
+      { status: 500 }
+    );
+  }
+}
 
 // POST /api/organization/departments — Create/Rename a department
+
 export async function POST(req: NextRequest) {
   try {
     const session = await requireAdmin();

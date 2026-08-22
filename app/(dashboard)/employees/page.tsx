@@ -41,13 +41,16 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ExportButton } from "@/components/shared/export-button";
 import { EmployeeGrid } from "@/components/employees/EmployeeGrid";
 import { EditEmployeeModal } from "@/components/employees/EditEmployeeModal";
+import { CreateEmployeeModal } from "@/components/employees/CreateEmployeeModal";
 import { ImageUpload } from "@/components/shared/image-upload";
+
 
 import type { AttendanceStatus } from "@/components/employees/EmployeeCard";
 
-import { useEmployees, useCreateEmployee } from "@/hooks";
+import { useEmployees, useCreateEmployee, useDepartments } from "@/hooks";
 import { formatDate, getInitials } from "@/lib/utils";
-import { DEPARTMENTS, EMPLOYMENT_STATUS_CONFIG } from "@/lib/constants";
+import { EMPLOYMENT_STATUS_CONFIG } from "@/lib/constants";
+
 
 const STATUS_CLASS: Record<string, string> = {
   ACTIVE: "status-success",
@@ -185,28 +188,35 @@ export default function EmployeesPage() {
     companyId: companyFilter !== "ALL" ? companyFilter : undefined,
   });
 
+  const { data: departments = [] } = useDepartments(companyFilter !== "ALL" ? companyFilter : undefined);
+
   const { data: attendanceMap = {}, isLoading: attLoading } = useTodayAllAttendance();
   const createEmployee = useCreateEmployee();
 
-  const onCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+
+  const onCreate = async (formData: any) => {
     setFormError(null);
-    if (!form.firstName || !form.lastName || !form.email) {
+    if (!formData.firstName || !formData.lastName || !formData.email) {
       setFormError("First name, last name, and email are required.");
       return;
     }
-    createEmployee.mutate(form as any, {
+    createEmployee.mutate(formData, {
       onSuccess: (data: any) => {
         setCreateOpen(false);
-        setForm({ firstName: "", lastName: "", email: "", phone: "", designation: "", department: "", joiningDate: "", employmentStatus: "ACTIVE", profileImage: "" });
         if (data?.credentials) {
-          setCredentials({ loginId: data.credentials.loginId, tempPassword: data.credentials.tempPassword, email: data.credentials.email, name: `${form.firstName} ${form.lastName}` });
+          setCredentials({
+            loginId: data.credentials.loginId,
+            tempPassword: data.credentials.tempPassword,
+            email: data.credentials.email,
+            name: `${formData.firstName} ${formData.lastName}`,
+          });
           setCredentialsOpen(true);
         }
       },
       onError: (err: any) => setFormError(err.message || "Failed to create employee."),
     });
   };
+
 
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
 
@@ -373,8 +383,9 @@ export default function EmployeesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Departments</SelectItem>
-              {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              {departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
+
           </Select>
 
           {/* Grid / List View Toggle */}
@@ -449,78 +460,27 @@ export default function EmployeesPage() {
             ]}
           />
           {/* Add Employee */}
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger render={<button className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors" />}>
-              <Plus className="h-4 w-4" /> Add Employee
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add New Employee</DialogTitle>
-                <p className="text-xs text-muted-foreground mt-1">Login ID and password are <strong>auto-generated</strong> by the system.</p>
-              </DialogHeader>
-              <form onSubmit={onCreate} className="space-y-4 mt-2">
-                {formError && <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">{formError}</div>}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">First Name *</Label>
-                    <Input placeholder="John" className="h-8" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Last Name *</Label>
-                    <Input placeholder="Doe" className="h-8" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
-                  </div>
-                  <div className="col-span-2 space-y-1.5">
-                    <Label className="text-xs">Email *</Label>
-                    <Input type="email" placeholder="john.doe@company.com" className="h-8" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Phone</Label>
-                    <Input placeholder="+91-9800000000" className="h-8" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Designation *</Label>
-                    <Input placeholder="Software Engineer" className="h-8" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Department *</Label>
-                    <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v ?? "" })}>
-                      <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>{DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                    </Select>
-
-                  </div>
-                  <div className="col-span-2 space-y-1.5">
-                    <Label className="text-xs">Profile Photo</Label>
-                    <ImageUpload
-                      value={form.profileImage || null}
-                      onChange={(url) => setForm({ ...form, profileImage: url || "" })}
-                      folder="HRMS"
-                      label="Upload Photo"
-                      shape="circle"
-                      size="sm"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
-
-                  <KeyRound className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                  <p className="text-xs text-muted-foreground">
-                    System will generate <strong>Login ID</strong> (e.g. <span className="font-mono">DFJODO20240001</span>) and a <strong>temporary password</strong>.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" className="flex-1" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                  <Button type="submit" className="flex-1" disabled={createEmployee.isPending}>
-                    {createEmployee.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Employee"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="gap-2 font-medium shadow-xs"
+          >
+            <Plus className="h-4 w-4" /> Add Employee
+          </Button>
         </div>
       </div>
 
+      <CreateEmployeeModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={onCreate}
+        isPending={createEmployee.isPending}
+        formError={formError}
+        orgsList={orgsList}
+        isSuperAdmin={isSuperAdmin}
+      />
+
       <CredentialsDialog open={credentialsOpen} onClose={() => setCredentialsOpen(false)} credentials={credentials} />
+
 
       {/* Filters & View Toggle */}
       <div className="flex flex-wrap items-center gap-3">
@@ -550,9 +510,10 @@ export default function EmployeesPage() {
           <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Department" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Departments</SelectItem>
-            {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            {departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
           </SelectContent>
         </Select>
+
 
         {/* Status Legend */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground hidden md:flex">

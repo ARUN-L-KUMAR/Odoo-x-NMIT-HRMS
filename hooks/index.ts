@@ -253,3 +253,23 @@ export function useUpdateSalary() {
     },
   });
 }
+
+// ─── Departments (Dynamic from Database) ─────────────────────────────────────
+export function useDepartments(companyId?: string) {
+  return useQuery<string[]>({
+    queryKey: ["organization", "departments", companyId || "current"],
+    queryFn: async () => {
+      const url = companyId
+        ? `/api/organization/departments?companyId=${encodeURIComponent(companyId)}`
+        : "/api/organization/departments";
+      const res = await fetch(url);
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) {
+        return ["Engineering", "Design", "Human Resources", "Marketing", "Sales", "Finance"];
+      }
+      return json.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+

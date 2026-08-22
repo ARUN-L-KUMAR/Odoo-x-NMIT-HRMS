@@ -47,9 +47,9 @@ import { ExportButton } from "@/components/shared/export-button";
 import { StatCard } from "@/components/shared/stat-card";
 import { SalaryConfigModal } from "@/components/payroll/SalaryConfigModal";
 import { PayslipModal } from "@/components/payroll/PayslipModal";
-import { useMyPayroll, useAllPayroll, useUpdateSalary } from "@/hooks";
+import { useMyPayroll, useAllPayroll, useUpdateSalary, useDepartments } from "@/hooks";
 import { formatCurrency, formatCurrencyCompact, getInitials, formatDate } from "@/lib/utils";
-import { DEPARTMENTS } from "@/lib/constants";
+
 import { useQuery } from "@tanstack/react-query";
 import type { SalaryStructure } from "@/types";
 
@@ -77,7 +77,9 @@ export default function PayrollPage() {
 
   const { data: mySalary, isLoading: myLoading } = useMyPayroll();
   const { data: allSalaries, isLoading: allLoading } = useAllPayroll();
+  const { data: departments = [] } = useDepartments(companyFilter !== "ALL" ? companyFilter : undefined);
   const updateSalary = useUpdateSalary();
+
 
   // Auto-open config modal for target employee if redirected from Salary Info tab
   useEffect(() => {
@@ -447,10 +449,11 @@ export default function PayrollPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Departments</SelectItem>
-            {DEPARTMENTS.map((d) => (
+            {departments.map((d) => (
               <SelectItem key={d} value={d}>{d}</SelectItem>
             ))}
           </SelectContent>
+
         </Select>
 
         {/* Grid / List View Toggle */}

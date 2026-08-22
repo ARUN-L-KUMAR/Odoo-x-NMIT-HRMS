@@ -68,7 +68,7 @@ import {
   formatHHMM,
   getInitials,
 } from "@/lib/utils";
-import { DEPARTMENTS } from "@/lib/constants";
+import { useDepartments } from "@/hooks";
 import type { Attendance, Employee } from "@/types";
 
 export default function AttendancePage() {
@@ -76,6 +76,8 @@ export default function AttendancePage() {
   const userRole = session?.user?.role?.toUpperCase();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isAdmin = userRole === "ADMIN" || isSuperAdmin;
+  const { data: departments = [] } = useDepartments();
+
 
   // ─── ADMIN STATE ────────────────────────────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());

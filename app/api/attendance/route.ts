@@ -75,7 +75,6 @@ export async function GET(req: NextRequest) {
             profileImage: true,
             department: true,
             designation: true,
-            companyId: true,
             company: {
               select: {
                 id: true,
@@ -93,6 +92,7 @@ export async function GET(req: NextRequest) {
           },
         },
       },
+
       orderBy: { attendanceDate: "desc" },
       take: 200,
     });

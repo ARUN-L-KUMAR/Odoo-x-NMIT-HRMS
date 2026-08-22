@@ -27,12 +27,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
-import { useEmployee, useUpdateEmployee } from "@/hooks";
+import { useEmployee, useUpdateEmployee, useDepartments } from "@/hooks";
 import { getInitials, formatDate, formatCurrency } from "@/lib/utils";
 import { ImageUpload } from "@/components/shared/image-upload";
 import { updateEmployeeSchema, type UpdateEmployeeInput } from "@/lib/validations";
-import { DEPARTMENTS } from "@/lib/constants";
 import { format } from "date-fns";
+
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -62,6 +62,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
 
   const { data: employee, isLoading } = useEmployee(id);
   const updateEmployee = useUpdateEmployee();
+  const { data: departments = [] } = useDepartments((employee as any)?.companyId || undefined);
+
 
   const {
     register,
@@ -451,12 +453,13 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       <SelectValue placeholder="Department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEPARTMENTS.map((dept) => (
+                      {departments.map((dept) => (
                         <SelectItem key={dept} value={dept}>
                           {dept}
                         </SelectItem>
                       ))}
                     </SelectContent>
+
                   </Select>
                 ) : (
                   <p className="font-medium text-xs flex items-center gap-1.5 py-1">
