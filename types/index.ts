@@ -190,7 +190,8 @@ export interface SalaryStructure {
   grossSalary: number;
   netSalary: number;
   effectiveFrom: string;
-  employee?: Pick<Employee, "id" | "firstName" | "lastName" | "designation" | "department">;
+  isConfigured?: boolean;
+  employee?: Employee;
 }
 
 

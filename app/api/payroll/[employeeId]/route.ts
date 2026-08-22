@@ -23,6 +23,20 @@ export async function GET(
             lastName: true,
             designation: true,
             department: true,
+            bankAccountNumber: true,
+            bankName: true,
+            bankIfsc: true,
+            panNumber: true,
+            uanNumber: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                initials: true,
+                logoUrl: true,
+              },
+            },
+            user: { select: { employeeId: true, email: true } },
           },
         },
       },
@@ -43,7 +57,7 @@ export async function GET(
   }
 }
 
-// PATCH /api/payroll/:employeeId — upsert salary structure with Excalidraw wage calculations
+// PATCH /api/payroll/:employeeId — upsert comprehensive salary structure
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ employeeId: string }> }
@@ -72,27 +86,34 @@ export async function PATCH(
       effectiveFrom,
     } = parsed.data;
 
-    // Automatic calculation per Excalidraw specification:
-    const yearlyWage = parsed.data.yearlyWage ?? monthlyWage * 12;
+    // Component calculations
     const basicSalary = parsed.data.basicSalary ?? Math.round(monthlyWage * 0.5 * 100) / 100;
     const hra = parsed.data.hra ?? Math.round(basicSalary * 0.5 * 100) / 100;
     const standardAllowance = parsed.data.standardAllowance ?? Math.round(basicSalary * 0.1667 * 100) / 100;
     const performanceBonus = parsed.data.performanceBonus ?? Math.round(basicSalary * 0.0833 * 100) / 100;
     const leaveTravelAllowance = parsed.data.leaveTravelAllowance ?? Math.round(basicSalary * 0.0833 * 100) / 100;
+    
+    // Balance remainder into fixed allowance if monthlyWage specified and fixedAllowance not passed
     const computedSoFar = basicSalary + hra + standardAllowance + performanceBonus + leaveTravelAllowance;
     const fixedAllowance = parsed.data.fixedAllowance ?? Math.max(0, Math.round((monthlyWage - computedSoFar) * 100) / 100);
+    const totalAllowances = standardAllowance + performanceBonus + leaveTravelAllowance + fixedAllowance;
+
+    const grossSalary = parsed.data.grossSalary ?? (basicSalary + hra + totalAllowances);
+    const finalMonthlyWage = monthlyWage > 0 ? monthlyWage : grossSalary;
+    const yearlyWage = parsed.data.yearlyWage ?? finalMonthlyWage * 12;
 
     const employeePf = parsed.data.employeePf ?? Math.round(basicSalary * 0.12 * 100) / 100;
     const employerPf = parsed.data.employerPf ?? Math.round(basicSalary * 0.12 * 100) / 100;
     const professionalTax = parsed.data.professionalTax ?? 200;
+    const tax = parsed.data.tax ?? 0;
+    const totalDeductions = employeePf + professionalTax + tax;
 
-    const grossSalary = monthlyWage;
-    const netSalary = grossSalary - employeePf - professionalTax;
+    const netSalary = Math.max(0, grossSalary - totalDeductions);
 
     const salary = await prisma.salaryStructure.upsert({
       where: { employeeId },
       update: {
-        monthlyWage,
+        monthlyWage: finalMonthlyWage,
         yearlyWage,
         workingDaysPerWeek,
         workingHoursPerDay,
@@ -106,17 +127,17 @@ export async function PATCH(
         employeePf,
         employerPf,
         professionalTax,
-        allowances: standardAllowance + performanceBonus + leaveTravelAllowance + fixedAllowance,
-        deductions: employeePf + professionalTax,
+        allowances: totalAllowances,
+        deductions: totalDeductions,
         pf: employeePf,
-        tax: professionalTax,
+        tax: tax + professionalTax,
         grossSalary,
         netSalary,
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : undefined,
       },
       create: {
         employeeId,
-        monthlyWage,
+        monthlyWage: finalMonthlyWage,
         yearlyWage,
         workingDaysPerWeek,
         workingHoursPerDay,
@@ -130,17 +151,31 @@ export async function PATCH(
         employeePf,
         employerPf,
         professionalTax,
-        allowances: standardAllowance + performanceBonus + leaveTravelAllowance + fixedAllowance,
-        deductions: employeePf + professionalTax,
+        allowances: totalAllowances,
+        deductions: totalDeductions,
         pf: employeePf,
-        tax: professionalTax,
+        tax: tax + professionalTax,
         grossSalary,
         netSalary,
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
       },
       include: {
         employee: {
-          select: { id: true, firstName: true, lastName: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            designation: true,
+            department: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                initials: true,
+                logoUrl: true,
+              },
+            },
+          },
         },
       },
     });
@@ -152,7 +187,7 @@ export async function PATCH(
         action: "SALARY_UPDATED",
         entityType: "salary",
         entityId: salary.id,
-        description: `Admin updated salary structure for ${salary.employee.firstName} ${salary.employee.lastName}`,
+        description: `Salary structure configured for ${salary.employee.firstName} ${salary.employee.lastName} (Gross: ₹${grossSalary.toLocaleString()}, Net: ₹${netSalary.toLocaleString()})`,
       },
     });
 

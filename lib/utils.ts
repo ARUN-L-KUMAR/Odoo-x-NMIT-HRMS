@@ -210,3 +210,50 @@ export function getWeekRange(date: Date): { startDate: string; endDate: string }
   const fmt = (d: Date) => d.toISOString().split("T")[0];
   return { startDate: fmt(start), endDate: fmt(end) };
 }
+
+/**
+ * Converts a numerical INR amount to words (Indian numbering format).
+ */
+export function numberToWordsINR(amount: number): string {
+  if (!amount || isNaN(amount) || amount <= 0) return "Zero Rupees Only";
+  const num = Math.floor(amount);
+
+  const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  function convertChunk(n: number): string {
+    let str = "";
+    if (n >= 100) {
+      str += units[Math.floor(n / 100)] + " Hundred ";
+      n %= 100;
+    }
+    if (n >= 20) {
+      str += tens[Math.floor(n / 10)] + " ";
+      n %= 10;
+    }
+    if (n > 0) {
+      str += units[n] + " ";
+    }
+    return str.trim();
+  }
+
+  let words = "";
+  const crore = Math.floor(num / 10000000);
+  let remainder = num % 10000000;
+
+  const lakh = Math.floor(remainder / 100000);
+  remainder = remainder % 100000;
+
+  const thousand = Math.floor(remainder / 1000);
+  remainder = remainder % 1000;
+
+  const hundredChunk = remainder;
+
+  if (crore > 0) words += convertChunk(crore) + " Crore ";
+  if (lakh > 0) words += convertChunk(lakh) + " Lakh ";
+  if (thousand > 0) words += convertChunk(thousand) + " Thousand ";
+  if (hundredChunk > 0) words += convertChunk(hundredChunk) + " ";
+
+  return (words.trim() + " Rupees Only").replace(/\s+/g, " ");
+}
+
