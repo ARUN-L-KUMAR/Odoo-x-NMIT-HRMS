@@ -43,7 +43,7 @@ export async function GET(
   }
 }
 
-// PATCH /api/payroll/:employeeId — upsert salary structure
+// PATCH /api/payroll/:employeeId — upsert salary structure with Excalidraw wage calculations
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ employeeId: string }> }
@@ -64,31 +64,76 @@ export async function PATCH(
       );
     }
 
-    const { basicSalary, hra, allowances, deductions, pf, tax, effectiveFrom } = parsed.data;
-    const grossSalary = basicSalary + hra + allowances;
-    const netSalary = grossSalary - deductions - pf - tax;
+    const {
+      monthlyWage,
+      workingDaysPerWeek = 5,
+      workingHoursPerDay = 8,
+      breakTimeHours = 1,
+      effectiveFrom,
+    } = parsed.data;
+
+    // Automatic calculation per Excalidraw specification:
+    const yearlyWage = parsed.data.yearlyWage ?? monthlyWage * 12;
+    const basicSalary = parsed.data.basicSalary ?? Math.round(monthlyWage * 0.5 * 100) / 100;
+    const hra = parsed.data.hra ?? Math.round(basicSalary * 0.5 * 100) / 100;
+    const standardAllowance = parsed.data.standardAllowance ?? Math.round(basicSalary * 0.1667 * 100) / 100;
+    const performanceBonus = parsed.data.performanceBonus ?? Math.round(basicSalary * 0.0833 * 100) / 100;
+    const leaveTravelAllowance = parsed.data.leaveTravelAllowance ?? Math.round(basicSalary * 0.0833 * 100) / 100;
+    const computedSoFar = basicSalary + hra + standardAllowance + performanceBonus + leaveTravelAllowance;
+    const fixedAllowance = parsed.data.fixedAllowance ?? Math.max(0, Math.round((monthlyWage - computedSoFar) * 100) / 100);
+
+    const employeePf = parsed.data.employeePf ?? Math.round(basicSalary * 0.12 * 100) / 100;
+    const employerPf = parsed.data.employerPf ?? Math.round(basicSalary * 0.12 * 100) / 100;
+    const professionalTax = parsed.data.professionalTax ?? 200;
+
+    const grossSalary = monthlyWage;
+    const netSalary = grossSalary - employeePf - professionalTax;
 
     const salary = await prisma.salaryStructure.upsert({
       where: { employeeId },
       update: {
+        monthlyWage,
+        yearlyWage,
+        workingDaysPerWeek,
+        workingHoursPerDay,
+        breakTimeHours,
         basicSalary,
         hra,
-        allowances,
-        deductions,
-        pf,
-        tax,
+        standardAllowance,
+        performanceBonus,
+        leaveTravelAllowance,
+        fixedAllowance,
+        employeePf,
+        employerPf,
+        professionalTax,
+        allowances: standardAllowance + performanceBonus + leaveTravelAllowance + fixedAllowance,
+        deductions: employeePf + professionalTax,
+        pf: employeePf,
+        tax: professionalTax,
         grossSalary,
         netSalary,
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : undefined,
       },
       create: {
         employeeId,
+        monthlyWage,
+        yearlyWage,
+        workingDaysPerWeek,
+        workingHoursPerDay,
+        breakTimeHours,
         basicSalary,
         hra,
-        allowances,
-        deductions,
-        pf,
-        tax,
+        standardAllowance,
+        performanceBonus,
+        leaveTravelAllowance,
+        fixedAllowance,
+        employeePf,
+        employerPf,
+        professionalTax,
+        allowances: standardAllowance + performanceBonus + leaveTravelAllowance + fixedAllowance,
+        deductions: employeePf + professionalTax,
+        pf: employeePf,
+        tax: professionalTax,
         grossSalary,
         netSalary,
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
@@ -107,7 +152,7 @@ export async function PATCH(
         action: "SALARY_UPDATED",
         entityType: "salary",
         entityId: salary.id,
-        description: `Admin updated salary for ${salary.employee.firstName} ${salary.employee.lastName}`,
+        description: `Admin updated salary structure for ${salary.employee.firstName} ${salary.employee.lastName}`,
       },
     });
 

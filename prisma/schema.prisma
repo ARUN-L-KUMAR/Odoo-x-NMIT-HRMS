@@ -90,6 +90,25 @@ model Employee {
   joiningDate      DateTime?        @map("joining_date") @db.Date
   employmentStatus EmploymentStatus @default(ACTIVE) @map("employment_status")
   profileImage     String?          @map("profile_image")
+  manager          String?
+  location         String?
+  // Resume tab
+  about            String?          @db.Text
+  whatILoveAboutMyJob String?       @map("what_i_love_about_my_job") @db.Text
+  interestsAndHobbies String?       @map("interests_and_hobbies") @db.Text
+  skills           String[]         @default([])
+  certifications   String[]         @default([])
+  // Private Info tab
+  dateOfBirth      DateTime?        @map("date_of_birth") @db.Date
+  nationality      String?
+  personalEmail    String?          @map("personal_email")
+  gender           String?
+  maritalStatus    String?          @map("marital_status")
+  bankAccountNumber String?         @map("bank_account_number")
+  bankName         String?          @map("bank_name")
+  bankIfsc         String?          @map("bank_ifsc")
+  panNumber        String?          @map("pan_number")
+  uanNumber        String?          @map("uan_number")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
@@ -104,6 +123,7 @@ model Employee {
   @@index([department])
   @@map("employees")
 }
+
 
 // ─── Employee Documents ───────────────────────────────────────────────────────
 
@@ -186,25 +206,38 @@ model LeaveRequest {
 // ─── Salary Structure ─────────────────────────────────────────────────────────
 
 model SalaryStructure {
-  id            String   @id @default(cuid())
-  employeeId    String   @unique @map("employee_id")
-  basicSalary   Decimal  @default(0) @map("basic_salary") @db.Decimal(12, 2)
-  hra           Decimal  @default(0) @db.Decimal(12, 2)
-  allowances    Decimal  @default(0) @db.Decimal(12, 2)
-  deductions    Decimal  @default(0) @db.Decimal(12, 2)
-  pf            Decimal  @default(0) @db.Decimal(12, 2)
-  tax           Decimal  @default(0) @db.Decimal(12, 2)
-  grossSalary   Decimal  @default(0) @map("gross_salary") @db.Decimal(12, 2)
-  netSalary     Decimal  @default(0) @map("net_salary") @db.Decimal(12, 2)
-  effectiveFrom DateTime @default(now()) @map("effective_from") @db.Date
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(cuid())
+  employeeId            String   @unique @map("employee_id")
+  monthlyWage           Decimal  @default(0) @map("monthly_wage") @db.Decimal(12, 2)
+  yearlyWage            Decimal  @default(0) @map("yearly_wage") @db.Decimal(12, 2)
+  workingDaysPerWeek    Int      @default(5) @map("working_days_per_week")
+  workingHoursPerDay    Decimal  @default(8) @map("working_hours_per_day") @db.Decimal(4, 1)
+  breakTimeHours        Decimal  @default(1) @map("break_time_hours") @db.Decimal(4, 1)
+  basicSalary           Decimal  @default(0) @map("basic_salary") @db.Decimal(12, 2)
+  hra                   Decimal  @default(0) @db.Decimal(12, 2)
+  standardAllowance     Decimal  @default(0) @map("standard_allowance") @db.Decimal(12, 2)
+  performanceBonus      Decimal  @default(0) @map("performance_bonus") @db.Decimal(12, 2)
+  leaveTravelAllowance  Decimal  @default(0) @map("leave_travel_allowance") @db.Decimal(12, 2)
+  fixedAllowance        Decimal  @default(0) @map("fixed_allowance") @db.Decimal(12, 2)
+  employeePf            Decimal  @default(0) @map("employee_pf") @db.Decimal(12, 2)
+  employerPf            Decimal  @default(0) @map("employer_pf") @db.Decimal(12, 2)
+  professionalTax       Decimal  @default(200) @map("professional_tax") @db.Decimal(12, 2)
+  allowances            Decimal  @default(0) @db.Decimal(12, 2)
+  deductions            Decimal  @default(0) @db.Decimal(12, 2)
+  pf                    Decimal  @default(0) @db.Decimal(12, 2)
+  tax                   Decimal  @default(0) @db.Decimal(12, 2)
+  grossSalary           Decimal  @default(0) @map("gross_salary") @db.Decimal(12, 2)
+  netSalary             Decimal  @default(0) @map("net_salary") @db.Decimal(12, 2)
+  effectiveFrom         DateTime @default(now()) @map("effective_from") @db.Date
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
   @@map("salary_structures")
 }
+
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────
 

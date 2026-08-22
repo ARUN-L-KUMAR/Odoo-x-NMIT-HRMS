@@ -48,6 +48,8 @@ export default function PayrollPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<SalaryInput>({ resolver: zodResolver(salarySchema) });
 
@@ -58,13 +60,22 @@ export default function PayrollPage() {
 
   const onEdit = (salary: SalaryStructure) => {
     setEditEmployee(salary);
+    const wage = Number(salary.monthlyWage || (Number(salary.basicSalary) * 2) || 50000);
     reset({
-      basicSalary: Number(salary.basicSalary),
-      hra: Number(salary.hra),
-      allowances: Number(salary.allowances),
-      deductions: Number(salary.deductions),
-      pf: Number(salary.pf),
-      tax: Number(salary.tax),
+      monthlyWage: wage,
+      yearlyWage: wage * 12,
+      workingDaysPerWeek: salary.workingDaysPerWeek || 5,
+      workingHoursPerDay: Number(salary.workingHoursPerDay || 8),
+      breakTimeHours: Number(salary.breakTimeHours || 1),
+      basicSalary: Number(salary.basicSalary || wage * 0.5),
+      hra: Number(salary.hra || wage * 0.25),
+      standardAllowance: Number(salary.standardAllowance || Math.round(wage * 0.5 * 0.1667)),
+      performanceBonus: Number(salary.performanceBonus || Math.round(wage * 0.5 * 0.0833)),
+      leaveTravelAllowance: Number(salary.leaveTravelAllowance || Math.round(wage * 0.5 * 0.0833)),
+      fixedAllowance: Number(salary.fixedAllowance || 0),
+      employeePf: Number(salary.employeePf || Math.round(wage * 0.5 * 0.12)),
+      employerPf: Number(salary.employerPf || Math.round(wage * 0.5 * 0.12)),
+      professionalTax: Number(salary.professionalTax || 200),
     });
   };
 
@@ -75,6 +86,7 @@ export default function PayrollPage() {
       { onSuccess: () => setEditEmployee(null) }
     );
   };
+
 
   if (!isAdmin) {
     // Employee view
@@ -284,42 +296,72 @@ export default function PayrollPage() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSave)} className="space-y-4 mt-2">
-            <div className="grid grid-cols-2 gap-3">
-              {(
-                [
-                  { name: "basicSalary", label: "Basic Salary" },
-                  { name: "hra", label: "HRA" },
-                  { name: "allowances", label: "Allowances" },
-                  { name: "deductions", label: "Deductions" },
-                  { name: "pf", label: "PF" },
-                  { name: "tax", label: "Tax (TDS)" },
-                ] as const
-              ).map((field) => (
-                <div key={field.name} className="space-y-1">
-                  <Label className="text-xs">{field.label}</Label>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Monthly Wage (₹) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 50000"
+                  {...register("monthlyWage", {
+                    valueAsNumber: true,
+                    onChange: (e) => {
+                      const val = Number(e.target.value) || 0;
+                      setValue("yearlyWage", val * 12);
+                      setValue("basicSalary", Math.round(val * 0.5));
+                      setValue("hra", Math.round(val * 0.25));
+                      setValue("employeePf", Math.round(val * 0.5 * 0.12));
+                      setValue("employerPf", Math.round(val * 0.5 * 0.12));
+                    },
+                  })}
+                  className="h-9 font-mono font-bold"
+                />
+                {errors.monthlyWage && (
+                  <p className="text-xs text-destructive">{errors.monthlyWage.message}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Components (Basic 50%, HRA 50% of Basic, PF 12%) will auto-calculate.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <Label className="text-xs">Working Days / Week</Label>
                   <Input
                     type="number"
-                    min="0"
-                    {...register(field.name, { valueAsNumber: true })}
+                    min="1"
+                    max="7"
+                    {...register("workingDaysPerWeek", { valueAsNumber: true })}
                     className="h-8"
                   />
-                  {errors[field.name] && (
-                    <p className="text-xs text-destructive">{errors[field.name]?.message}</p>
-                  )}
                 </div>
-              ))}
+                <div className="space-y-1">
+                  <Label className="text-xs">Working Hours / Day</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="24"
+                    {...register("workingHoursPerDay", { valueAsNumber: true })}
+                    className="h-8"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
+
+            <div className="flex gap-2 pt-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setEditEmployee(null)}>
                 Cancel
               </Button>
               <Button type="submit" className="flex-1" disabled={updateSalary.isPending}>
                 {updateSalary.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                ) : "Save Salary"}
+                ) : (
+                  "Save Salary"
+                )}
               </Button>
             </div>
           </form>
+
         </DialogContent>
       </Dialog>
     </div>

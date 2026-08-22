@@ -52,6 +52,25 @@ export interface Employee {
   joiningDate: string | null;
   employmentStatus: EmploymentStatus;
   profileImage: string | null;
+  manager?: string | null;
+  location?: string | null;
+  // Resume Tab
+  about?: string | null;
+  whatILoveAboutMyJob?: string | null;
+  interestsAndHobbies?: string | null;
+  skills?: string[];
+  certifications?: string[];
+  // Private Info Tab
+  dateOfBirth?: string | null;
+  nationality?: string | null;
+  personalEmail?: string | null;
+  gender?: string | null;
+  maritalStatus?: string | null;
+  bankAccountNumber?: string | null;
+  bankName?: string | null;
+  bankIfsc?: string | null;
+  panNumber?: string | null;
+  uanNumber?: string | null;
   createdAt: string;
   user: {
     id: string;
@@ -62,6 +81,7 @@ export interface Employee {
   // Admin-only, returned when fetched as admin
   salaryStructure?: SalaryStructure | null;
 }
+
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
 
@@ -126,8 +146,20 @@ export interface LeaveBalance {
 export interface SalaryStructure {
   id: string;
   employeeId: string;
+  monthlyWage: number;
+  yearlyWage: number;
+  workingDaysPerWeek: number;
+  workingHoursPerDay: number;
+  breakTimeHours: number;
   basicSalary: number;
   hra: number;
+  standardAllowance: number;
+  performanceBonus: number;
+  leaveTravelAllowance: number;
+  fixedAllowance: number;
+  employeePf: number;
+  employerPf: number;
+  professionalTax: number;
   allowances: number;
   deductions: number;
   pf: number;
@@ -137,6 +169,7 @@ export interface SalaryStructure {
   effectiveFrom: string;
   employee?: Pick<Employee, "id" | "firstName" | "lastName" | "designation" | "department">;
 }
+
 
 // ─── Activity ─────────────────────────────────────────────────────────────────
 

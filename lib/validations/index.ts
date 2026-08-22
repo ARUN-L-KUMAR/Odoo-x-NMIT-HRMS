@@ -84,16 +84,33 @@ export const updateEmployeeSchema = z.object({
   city: z.string().optional().nullable(),
   state: z.string().optional().nullable(),
   postalCode: z.string().optional().nullable(),
-  designation: z.string().optional(),
-  department: z.string().optional(),
+  designation: z.string().optional().nullable(),
+  department: z.string().optional().nullable(),
   joiningDate: z.string().optional().nullable(),
   employmentStatus: z
     .enum(["ACTIVE", "INACTIVE", "ON_NOTICE", "TERMINATED"])
     .optional(),
   profileImage: z.string().optional().nullable(),
+  manager: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  about: z.string().optional().nullable(),
+  whatILoveAboutMyJob: z.string().optional().nullable(),
+  interestsAndHobbies: z.string().optional().nullable(),
+  skills: z.array(z.string()).optional(),
+  certifications: z.array(z.string()).optional(),
+  dateOfBirth: z.string().optional().nullable(),
+  nationality: z.string().optional().nullable(),
+  personalEmail: z.string().optional().nullable(),
+  gender: z.string().optional().nullable(),
+  maritalStatus: z.string().optional().nullable(),
+  bankAccountNumber: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankIfsc: z.string().optional().nullable(),
+  panNumber: z.string().optional().nullable(),
+  uanNumber: z.string().optional().nullable(),
 });
 
-// Employee can only update these fields
+// Employee self update
 export const selfUpdateEmployeeSchema = z.object({
   firstName: z.string().min(1, "First name is required").optional(),
   lastName: z.string().min(1, "Last name is required").optional(),
@@ -103,6 +120,23 @@ export const selfUpdateEmployeeSchema = z.object({
   state: z.string().optional().nullable(),
   postalCode: z.string().optional().nullable(),
   profileImage: z.string().optional().nullable(),
+  manager: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  about: z.string().optional().nullable(),
+  whatILoveAboutMyJob: z.string().optional().nullable(),
+  interestsAndHobbies: z.string().optional().nullable(),
+  skills: z.array(z.string()).optional(),
+  certifications: z.array(z.string()).optional(),
+  dateOfBirth: z.string().optional().nullable(),
+  nationality: z.string().optional().nullable(),
+  personalEmail: z.string().optional().nullable(),
+  gender: z.string().optional().nullable(),
+  maritalStatus: z.string().optional().nullable(),
+  bankAccountNumber: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankIfsc: z.string().optional().nullable(),
+  panNumber: z.string().optional().nullable(),
+  uanNumber: z.string().optional().nullable(),
 });
 
 // ─── Leave ────────────────────────────────────────────────────────────────────
@@ -129,12 +163,26 @@ export const leaveReviewSchema = z.object({
 // ─── Salary ───────────────────────────────────────────────────────────────────
 
 export const salarySchema = z.object({
-  basicSalary: z.number().min(0, "Basic salary must be ≥ 0"),
-  hra: z.number().min(0, "HRA must be ≥ 0"),
-  allowances: z.number().min(0, "Allowances must be ≥ 0"),
-  deductions: z.number().min(0, "Deductions must be ≥ 0"),
-  pf: z.number().min(0, "PF must be ≥ 0"),
-  tax: z.number().min(0, "Tax must be ≥ 0"),
+  monthlyWage: z.number().min(0, "Monthly wage must be ≥ 0"),
+  yearlyWage: z.number().min(0).optional(),
+  workingDaysPerWeek: z.number().min(1).max(7).optional(),
+  workingHoursPerDay: z.number().min(1).max(24).optional(),
+  breakTimeHours: z.number().min(0).max(12).optional(),
+  basicSalary: z.number().min(0).optional(),
+  hra: z.number().min(0).optional(),
+  standardAllowance: z.number().min(0).optional(),
+  performanceBonus: z.number().min(0).optional(),
+  leaveTravelAllowance: z.number().min(0).optional(),
+  fixedAllowance: z.number().min(0).optional(),
+  employeePf: z.number().min(0).optional(),
+  employerPf: z.number().min(0).optional(),
+  professionalTax: z.number().min(0).optional(),
+  allowances: z.number().min(0).optional(),
+  deductions: z.number().min(0).optional(),
+  pf: z.number().min(0).optional(),
+  tax: z.number().min(0).optional(),
+  grossSalary: z.number().min(0).optional(),
+  netSalary: z.number().min(0).optional(),
   effectiveFrom: z.string().optional(),
 });
 
@@ -148,4 +196,5 @@ export type SelfUpdateEmployeeInput = z.infer<typeof selfUpdateEmployeeSchema>;
 export type CreateLeaveInput = z.infer<typeof createLeaveSchema>;
 export type LeaveReviewInput = z.infer<typeof leaveReviewSchema>;
 export type SalaryInput = z.infer<typeof salarySchema>;
+
 

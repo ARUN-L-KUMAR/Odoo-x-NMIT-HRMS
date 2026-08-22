@@ -1,0 +1,32 @@
+-- AlterTable
+ALTER TABLE "employees" ADD COLUMN     "about" TEXT,
+ADD COLUMN     "bank_account_number" TEXT,
+ADD COLUMN     "bank_ifsc" TEXT,
+ADD COLUMN     "bank_name" TEXT,
+ADD COLUMN     "certifications" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "date_of_birth" DATE,
+ADD COLUMN     "gender" TEXT,
+ADD COLUMN     "interests_and_hobbies" TEXT,
+ADD COLUMN     "location" TEXT,
+ADD COLUMN     "manager" TEXT,
+ADD COLUMN     "marital_status" TEXT,
+ADD COLUMN     "nationality" TEXT,
+ADD COLUMN     "pan_number" TEXT,
+ADD COLUMN     "personal_email" TEXT,
+ADD COLUMN     "skills" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "uan_number" TEXT,
+ADD COLUMN     "what_i_love_about_my_job" TEXT;
+
+-- AlterTable
+ALTER TABLE "salary_structures" ADD COLUMN     "break_time_hours" DECIMAL(4,1) NOT NULL DEFAULT 1,
+ADD COLUMN     "employee_pf" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "employer_pf" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "fixed_allowance" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "leave_travel_allowance" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "monthly_wage" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "performance_bonus" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "professional_tax" DECIMAL(12,2) NOT NULL DEFAULT 200,
+ADD COLUMN     "standard_allowance" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "working_days_per_week" INTEGER NOT NULL DEFAULT 5,
+ADD COLUMN     "working_hours_per_day" DECIMAL(4,1) NOT NULL DEFAULT 8,
+ADD COLUMN     "yearly_wage" DECIMAL(12,2) NOT NULL DEFAULT 0;
