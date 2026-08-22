@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldAlert,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ interface OrgItem {
   name: string;
   initials: string;
   logoUrl: string | null;
+  notificationEmail?: string | null;
   employeeCount: number;
   createdAt: string;
 }
@@ -62,6 +64,7 @@ interface OrgData {
   name: string;
   initials: string;
   logoUrl: string | null;
+  notificationEmail: string | null;
   createdAt: string;
   isSuperAdmin?: boolean;
   stats: {
@@ -99,6 +102,7 @@ export default function OrganizationPage() {
   const [name, setName] = useState("");
   const [initials, setInitials] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [notificationEmail, setNotificationEmail] = useState("");
   const [savingOrg, setSavingOrg] = useState(false);
 
   // Dialogs
@@ -107,6 +111,7 @@ export default function OrganizationPage() {
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgInitials, setNewOrgInitials] = useState("");
   const [newOrgLogo, setNewOrgLogo] = useState<string | null>(null);
+  const [newOrgNotificationEmail, setNewOrgNotificationEmail] = useState("");
   const [creatingOrg, setCreatingOrg] = useState(false);
 
   // 2. Delete Organization Modal
@@ -141,6 +146,7 @@ export default function OrganizationPage() {
         setName(json.data.name);
         setInitials(json.data.initials);
         setLogoUrl(json.data.logoUrl);
+        setNotificationEmail(json.data.notificationEmail || "");
         if (json.data.isSuperAdmin || isSuperAdmin) {
           setActiveTab("all_orgs");
         }
@@ -174,6 +180,7 @@ export default function OrganizationPage() {
           name: name.trim(),
           initials: initials.trim().toUpperCase(),
           logoUrl,
+          notificationEmail: notificationEmail.trim() || null,
         }),
       });
       const result = await res.json();
@@ -184,7 +191,13 @@ export default function OrganizationPage() {
       }
 
       toast.success("Organization profile updated successfully!");
-      setData((prev) => (prev ? { ...prev, name: result.data.name, initials: result.data.initials, logoUrl: result.data.logoUrl } : null));
+      setData((prev) => (prev ? {
+        ...prev,
+        name: result.data.name,
+        initials: result.data.initials,
+        logoUrl: result.data.logoUrl,
+        notificationEmail: result.data.notificationEmail,
+      } : null));
 
       await updateSession({
         companyName: result.data.name,
@@ -481,10 +494,19 @@ export default function OrganizationPage() {
                   Active Tenant
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
                 <span>Initials: <strong className="font-mono text-foreground">{data.initials}</strong></span>
                 <span>&bull;</span>
                 <span>Created {format(new Date(data.createdAt), "MMMM dd, yyyy")}</span>
+                {data.notificationEmail && (
+                  <>
+                    <span>&bull;</span>
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border">
+                      <Mail className="h-3 w-3 text-primary" />
+                      Alerts: <strong className="font-mono text-foreground">{data.notificationEmail}</strong>
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -1046,6 +1068,23 @@ export default function OrganizationPage() {
                     shape="square"
                     size="md"
                   />
+                </div>
+
+                <div className="space-y-2 pt-2 border-t">
+                  <Label htmlFor="notificationEmail" className="flex items-center gap-2 font-semibold text-foreground">
+                    <Mail className="h-4 w-4 text-primary" />
+                    Onboarding Notification Email
+                  </Label>
+                  <Input
+                    id="notificationEmail"
+                    type="email"
+                    value={notificationEmail}
+                    onChange={(e) => setNotificationEmail(e.target.value)}
+                    placeholder="e.g. hr-onboarding@yourcompany.com or admin@company.com"
+                  />
+                  <p className="text-[11px] text-muted-foreground leading-normal">
+                    This email address will automatically receive an instant notification alert with employee details whenever any new user is onboarded into this organization.
+                  </p>
                 </div>
 
                 <Button type="submit" disabled={savingOrg} className="gap-2">

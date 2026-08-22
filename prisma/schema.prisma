@@ -41,18 +41,20 @@ enum EmploymentStatus {
 // ─── Company (Tenant) ────────────────────────────────────────────────────────
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  initials  String   // e.g. "DF" from "Dayflow"
-  logoUrl   String?  @map("logo_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  name              String
+  initials          String   // e.g. "DF" from "Dayflow"
+  logoUrl           String?  @map("logo_url")
+  notificationEmail String?  @map("notification_email")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   // Relations
-  users        User[]
-  employees    Employee[]
-  leaveTypes   LeaveType[]
-  activityLogs ActivityLog[]
+  users         User[]
+  employees     Employee[]
+  leaveTypes    LeaveType[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
 
   @@map("company")
 }
@@ -76,6 +78,7 @@ model User {
   employee       Employee?
   reviewedLeaves LeaveRequest[] @relation("ReviewedLeaves")
   activityLogs   ActivityLog[]
+  notifications  Notification[]
 
   @@index([companyId])
   @@index([email])
@@ -275,3 +278,37 @@ model ActivityLog {
   @@index([createdAt])
   @@map("activity_logs")
 }
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  LEAVE
+  ATTENDANCE
+  PAYROLL
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  companyId String?          @map("company_id")
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  link      String?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+

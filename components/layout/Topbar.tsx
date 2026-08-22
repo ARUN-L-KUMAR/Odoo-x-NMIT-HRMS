@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTodayAttendance, useCheckIn, useCheckOut } from "@/hooks";
 import { getInitials, formatTime } from "@/lib/utils";
+import { NotificationDropdown } from "@/components/layout/NotificationDropdown";
+import { HistoryDropdown } from "@/components/layout/HistoryDropdown";
 import Link from "next/link";
 
 interface TopbarProps {
@@ -116,6 +118,12 @@ export function Topbar({ onMenuClick, pageTitle }: TopbarProps) {
             </Button>
           </div>
         )}
+
+        {/* History / Audit Log Popover */}
+        <HistoryDropdown />
+
+        {/* Real-time Notifications & Alerts Popover */}
+        <NotificationDropdown />
 
         {/* User Menu with Status Dot */}
         <DropdownMenu>

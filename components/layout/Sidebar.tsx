@@ -16,6 +16,8 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Bell,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +46,8 @@ const NAV_ITEMS: NavItem[] = [
   // Admin-only modules
   { label: "Payroll", href: "/payroll", icon: DollarSign, adminOnly: true },
   { label: "Reports", href: "/reports", icon: BarChart3, adminOnly: true },
+  { label: "Notifications", href: "/notifications", icon: Bell },
+  { label: "History", href: "/history", icon: History },
   { label: "Organization", href: "/organization", icon: Building2, adminOnly: true },
 ];
 
