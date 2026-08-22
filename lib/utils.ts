@@ -35,6 +35,19 @@ export function formatWorkedTime(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
+export function formatHHMM(minutes: number): string {
+  if (minutes <= 0) return "00:00";
+  const h = Math.floor(minutes / 60).toString().padStart(2, "0");
+  const m = (minutes % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+export function formatTime24(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  return format(new Date(date), "HH:mm");
+}
+
+
 // ─── Currency ─────────────────────────────────────────────────────────────────
 
 export function formatCurrency(amount: number | string | null | undefined): string {

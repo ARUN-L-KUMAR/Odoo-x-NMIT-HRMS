@@ -1,23 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { format, subDays, startOfWeek, endOfWeek, subWeeks, addWeeks, isSameWeek } from "date-fns";
+import { useState, useMemo } from "react";
 import {
-  LogIn,
-  LogOut,
-  Loader2,
-  Clock,
-  CalendarDays,
-  Filter,
-  CheckCircle2,
+  format,
+  subDays,
+  addDays,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  addMonths,
+  eachDayOfInterval,
+  isWeekend,
+  isSameDay,
+  isToday,
+} from "date-fns";
+import {
+  Search,
   ChevronLeft,
   ChevronRight,
+  Calendar as CalendarIcon,
+  Clock,
+  UserCheck,
+  CalendarOff,
+  Briefcase,
+  CheckCircle2,
+  SlidersHorizontal,
+  ArrowRight,
+  Sparkles,
+  X,
+  User,
+  Users,
+  Eye,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import type { DateRange } from "react-day-picker";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -34,363 +54,1044 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DatePickerWithRange } from "@/components/ui/date-range-picker";
-import { SearchInput } from "@/components/shared/search-input";
-import { EmptyState } from "@/components/shared/empty-state";
 import { ExportButton } from "@/components/shared/export-button";
 import {
   useMyAttendance,
   useAllAttendance,
-  useCheckIn,
-  useCheckOut,
+  useEmployees,
   useTodayAttendance,
 } from "@/hooks";
-import { formatDate, formatTime, formatWorkedTime, getInitials } from "@/lib/utils";
-import { ATTENDANCE_STATUS_CONFIG } from "@/lib/constants";
-import type { AttendanceStatus } from "@/types";
-
-const STATUS_BADGE_CLASS: Record<AttendanceStatus, string> = {
-  PRESENT: "status-success",
-  ABSENT: "status-destructive",
-  HALF_DAY: "status-warning",
-  LEAVE: "status-info",
-};
+import {
+  formatDate,
+  formatTime,
+  formatTime24,
+  formatHHMM,
+  getInitials,
+} from "@/lib/utils";
+import { DEPARTMENTS } from "@/lib/constants";
+import type { Attendance, Employee } from "@/types";
 
 export default function AttendancePage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [employeeSearch, setEmployeeSearch] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  // Week navigation for employee history
-  const [weekOffset, setWeekOffset] = useState(0);
-  const currentWeekStart = startOfWeek(subWeeks(new Date(), -weekOffset), { weekStartsOn: 1 });
-  const currentWeekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-  const isCurrentWeek = weekOffset === 0;
+  // ─── ADMIN STATE ────────────────────────────────────────────────────────────
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [adminSearch, setAdminSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("ALL");
+  const [selectedDesignation, setSelectedDesignation] = useState("ALL");
+  const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
-  const { data: todayAtt } = useTodayAttendance();
 
-  // Date range for employee history: use custom range if set, otherwise use week navigation
-  const from = dateRange?.from
-    ? format(dateRange.from, "yyyy-MM-dd")
-    : format(currentWeekStart, "yyyy-MM-dd");
-  const to = dateRange?.to
-    ? format(dateRange.to, "yyyy-MM-dd")
-    : format(currentWeekEnd, "yyyy-MM-dd");
+  // ─── MONTH NAVIGATION STATE ─────────────────────────────────────────────────
+  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
 
-  const { data: myAttendance, isLoading: myLoading } = useMyAttendance({ from, to });
-  const { data: allAttendance, isLoading: allLoading } = useAllAttendance(
-    isAdmin ? {} : undefined
+  // ─── FORMATTED DATES ────────────────────────────────────────────────────────
+  const formattedSelectedDate = format(selectedDate, "yyyy-MM-dd");
+  const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+
+  // All employees for admin directory & searching
+  const { data: allEmployees, isLoading: empLoading } = useEmployees();
+
+  // Extract unique designations from existing employees list
+  const uniqueDesignations = useMemo(() => {
+    const set = new Set<string>();
+    (allEmployees || []).forEach((e) => {
+      if (e.designation) set.add(e.designation.trim());
+    });
+    return Array.from(set).sort();
+  }, [allEmployees]);
+
+  // Admin daily attendance query (for all employees on selected date)
+  const { data: adminDailyAttendance, isLoading: dailyLoading } = useAllAttendance(
+    isAdmin && !selectedEmployeeId
+      ? { from: formattedSelectedDate, to: formattedSelectedDate }
+      : undefined
   );
 
-  const checkIn = useCheckIn();
-  const checkOut = useCheckOut();
+  // Single employee monthly attendance query (used when admin inspects a specific user)
+  const { data: targetEmployeeAttendance, isLoading: targetLoading } = useAllAttendance(
+    isAdmin && selectedEmployeeId
+      ? { employeeId: selectedEmployeeId, from: monthStart, to: monthEnd }
+      : undefined
+  );
 
-  const canCheckIn = !todayAtt?.checkIn;
-  const canCheckOut = !!todayAtt?.checkIn && !todayAtt?.checkOut;
-  const attendanceComplete = !!todayAtt?.checkIn && !!todayAtt?.checkOut;
+  // Current logged in user monthly attendance
+  const { data: myAttendance, isLoading: myLoading } = useMyAttendance(
+    !isAdmin
+      ? { from: monthStart, to: monthEnd }
+      : undefined
+  );
 
-  const displayData = isAdmin ? allAttendance : myAttendance;
-  const isLoading = isAdmin ? allLoading : myLoading;
+  const selectedEmployee = useMemo(() => {
+    if (!selectedEmployeeId || !allEmployees) return null;
+    return allEmployees.find((e) => e.id === selectedEmployeeId) || null;
+  }, [selectedEmployeeId, allEmployees]);
 
-  const filtered = displayData?.filter((r) => {
-    const statusOk = statusFilter === "ALL" || r.status === statusFilter;
-    const searchOk =
-      !employeeSearch ||
-      `${r.employee?.firstName} ${r.employee?.lastName}`
-        .toLowerCase()
-        .includes(employeeSearch.toLowerCase());
-    const dateOk =
-      !dateRange?.from ||
-      !dateRange?.to ||
-      !isAdmin ||
-      (() => {
-        const d = new Date(r.attendanceDate);
-        return d >= dateRange.from! && d <= dateRange.to!;
-      })();
-    return statusOk && searchOk && dateOk;
-  });
+  // ─── ADMIN DAILY TABLE ROWS ─────────────────────────────────────────────────
+  const adminDailyRows = useMemo(() => {
+    if (!isAdmin || selectedEmployeeId) return [];
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {isAdmin ? "Attendance" : "Attendance"}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {isAdmin
-              ? "Monitor employee attendance records"
-              : "Track your daily attendance"}
-          </p>
+    const attendanceRecords = adminDailyAttendance || [];
+    const attMap = new Map<string, Attendance>();
+    attendanceRecords.forEach((att) => {
+      attMap.set(att.employeeId, att);
+    });
+
+    let rows = (allEmployees || []).map((emp) => {
+      const att = attMap.get(emp.id);
+      const checkInDate = att?.checkIn ? new Date(att.checkIn) : null;
+      const checkOutDate = att?.checkOut ? new Date(att.checkOut) : null;
+
+      let workedMinutes = 0;
+      if (checkInDate && checkOutDate) {
+        workedMinutes = Math.max(
+          0,
+          Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60))
+        );
+      } else if (att?.workedMinutes) {
+        workedMinutes = att.workedMinutes;
+      }
+
+      // Standard work day = 8 hours (480 minutes)
+      const standardDayMinutes = 480;
+      const extraMinutes = Math.max(0, workedMinutes - standardDayMinutes);
+
+      return {
+        employee: emp,
+        attendance: att,
+        status: att?.status || "ABSENT",
+        checkInFormatted: checkInDate ? formatTime24(checkInDate) : "—",
+        checkOutFormatted: checkOutDate ? formatTime24(checkOutDate) : "—",
+        workHoursFormatted:
+          workedMinutes > 0
+            ? formatHHMM(workedMinutes)
+            : att?.checkIn
+            ? "In Progress"
+            : "00:00",
+        extraHoursFormatted: extraMinutes > 0 ? formatHHMM(extraMinutes) : "00:00",
+        workedMinutes,
+        extraMinutes,
+      };
+    });
+
+    // Filter by department
+    if (selectedDepartment !== "ALL") {
+      rows = rows.filter((r) => r.employee.department === selectedDepartment);
+    }
+
+    // Filter by designation
+    if (selectedDesignation !== "ALL") {
+      rows = rows.filter((r) => r.employee.designation === selectedDesignation);
+    }
+
+    // Filter by attendance status (Present, On Leave, Absent)
+    if (selectedStatus !== "ALL") {
+      if (selectedStatus === "PRESENT") {
+        rows = rows.filter((r) => r.status === "PRESENT" || r.checkInFormatted !== "—");
+      } else if (selectedStatus === "LEAVE") {
+        rows = rows.filter((r) => r.status === "LEAVE");
+      } else if (selectedStatus === "ABSENT") {
+        rows = rows.filter((r) => r.status === "ABSENT" && r.checkInFormatted === "—");
+      }
+    }
+
+    // Filter by search keyword
+    if (adminSearch) {
+      const q = adminSearch.toLowerCase();
+      rows = rows.filter((r) => {
+        const name = `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase();
+        const code = (r.employee.user?.employeeId || "").toLowerCase();
+        const dept = (r.employee.department || "").toLowerCase();
+        const email = (r.employee.user?.email || "").toLowerCase();
+        return name.includes(q) || code.includes(q) || dept.includes(q) || email.includes(q);
+      });
+    }
+
+    return rows;
+  }, [isAdmin, selectedEmployeeId, adminDailyAttendance, allEmployees, selectedDepartment, selectedDesignation, selectedStatus, adminSearch]);
+
+
+
+  // ─── MONTHLY DAY-WISE CALCULATION (FOR EMPLOYEE OR SELECTED USER) ───────────
+  const activeMonthlyRecords = isAdmin && selectedEmployeeId ? targetEmployeeAttendance : myAttendance;
+  const isMonthlyLoading = isAdmin && selectedEmployeeId ? targetLoading : myLoading;
+
+  const { monthDays, presentCount, leaveCount, totalWorkingDays } = useMemo(() => {
+    const daysInMonth = eachDayOfInterval({
+      start: startOfMonth(currentMonth),
+      end: endOfMonth(currentMonth),
+    });
+
+    const records = activeMonthlyRecords || [];
+    const recordByDate = new Map<string, Attendance>();
+
+    records.forEach((r) => {
+      if (r.attendanceDate) {
+        const key = format(new Date(r.attendanceDate), "yyyy-MM-dd");
+        recordByDate.set(key, r);
+      }
+    });
+
+    let present = 0;
+    let leaves = 0;
+    let workingDays = 0;
+
+    const days = daysInMonth.map((day) => {
+      const dateKey = format(day, "yyyy-MM-dd");
+      const att = recordByDate.get(dateKey);
+      const isWknd = isWeekend(day);
+
+      if (!isWknd) {
+        workingDays++;
+      }
+
+      const checkInDate = att?.checkIn ? new Date(att.checkIn) : null;
+      const checkOutDate = att?.checkOut ? new Date(att.checkOut) : null;
+
+      let workedMinutes = 0;
+      if (checkInDate && checkOutDate) {
+        workedMinutes = Math.max(
+          0,
+          Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60))
+        );
+      } else if (att?.workedMinutes) {
+        workedMinutes = att.workedMinutes;
+      }
+
+      const extraMinutes = Math.max(0, workedMinutes - 480);
+
+      if (att?.status === "PRESENT" || (checkInDate && att?.status !== "LEAVE")) {
+        present++;
+      } else if (att?.status === "LEAVE") {
+        leaves++;
+      }
+
+      return {
+        date: day,
+        dateFormatted: format(day, "dd/MM/yyyy"),
+        dayName: format(day, "EEE"),
+        isWeekend: isWknd,
+        attendance: att,
+        status: att?.status || (isWknd ? "WEEKEND" : day > new Date() ? "UPCOMING" : "ABSENT"),
+        checkInFormatted: checkInDate ? formatTime24(checkInDate) : "—",
+        checkOutFormatted: checkOutDate ? formatTime24(checkOutDate) : "—",
+        workHoursFormatted: workedMinutes > 0 ? formatHHMM(workedMinutes) : "00:00",
+        extraHoursFormatted: extraMinutes > 0 ? formatHHMM(extraMinutes) : "00:00",
+      };
+    });
+
+    return {
+      monthDays: days.reverse(),
+      presentCount: present,
+      leaveCount: leaves,
+      totalWorkingDays: workingDays,
+    };
+  }, [currentMonth, activeMonthlyRecords]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── ADMIN: SPECIFIC EMPLOYEE MONTHLY VIEW ─────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (isAdmin && selectedEmployee) {
+    const fullName = `${selectedEmployee.firstName} ${selectedEmployee.lastName}`.trim();
+    return (
+      <div className="space-y-6 w-full pb-12">
+        {/* Header with Back Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedEmployeeId(null)}
+              className="gap-2 text-xs font-medium"
+            >
+              <ChevronLeft className="h-4 w-4" /> Back to All Employees
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {fullName} — Attendance
+              </h1>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Login ID: <span className="font-mono font-semibold">{selectedEmployee.user?.employeeId}</span> • {selectedEmployee.designation || selectedEmployee.department || "Employee"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ExportButton
+              data={monthDays}
+              filename={`attendance-${selectedEmployee.user?.employeeId}-${format(currentMonth, "yyyy-MM")}`}
+              columns={[
+                { header: "Date", accessor: (r) => r.dateFormatted },
+                { header: "Day", accessor: (r) => r.dayName },
+                { header: "Check In", accessor: (r) => r.checkInFormatted },
+                { header: "Check Out", accessor: (r) => r.checkOutFormatted },
+                { header: "Work Hours", accessor: (r) => r.workHoursFormatted },
+                { header: "Extra Hours", accessor: (r) => r.extraHoursFormatted },
+                { header: "Status", accessor: (r) => r.status },
+              ]}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <ExportButton
-            data={filtered ?? []}
-            filename="attendance"
-            columns={[
-              ...(isAdmin
-                ? [
-                    {
-                      header: "Employee",
-                      accessor: (r: NonNullable<typeof filtered>[number]) =>
-                        `${r.employee?.firstName} ${r.employee?.lastName}`,
-                    },
-                  ]
-                : []),
-              { header: "Date", accessor: (r: NonNullable<typeof filtered>[number]) => formatDate(r.attendanceDate) },
-              { header: "Check In", accessor: (r: NonNullable<typeof filtered>[number]) => r.checkIn ? formatTime(r.checkIn) : "" },
-              { header: "Check Out", accessor: (r: NonNullable<typeof filtered>[number]) => r.checkOut ? formatTime(r.checkOut) : "" },
-              { header: "Worked (min)", accessor: "workedMinutes" as const },
-              { header: "Status", accessor: "status" as const },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* Today's status — Employee only (Excalidraw state machine) */}
-      {!isAdmin && (
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-muted-foreground mb-3">
-              Today — {format(new Date(), "EEEE, MMMM d, yyyy")}
-            </p>
-
-            {/* State 3: Attendance completed */}
-            {attendanceComplete && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                  <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                    Attendance Completed
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { icon: LogIn, label: "Check In", value: formatTime(todayAtt!.checkIn!) },
-                    { icon: LogOut, label: "Check Out", value: formatTime(todayAtt!.checkOut!) },
-                    { icon: Clock, label: "Worked", value: formatWorkedTime(todayAtt!.workedMinutes) },
-                  ].map(({ icon: Icon, label, value }) => (
-                    <div key={label} className="rounded-lg bg-muted/50 px-3 py-2.5 text-center">
-                      <Icon className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
-                      <p className="text-sm font-semibold mt-0.5">{value}</p>
-                    </div>
-                  ))}
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-success">
-                  Present
-                </span>
-              </div>
-            )}
-
-            {/* State 2: Checked in, not out */}
-            {!attendanceComplete && todayAtt?.checkIn && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-sm font-medium">
-                    Checked in at <strong>{formatTime(todayAtt.checkIn)}</strong>
-                  </span>
-                </div>
-                <Button
-                  onClick={() => checkOut.mutate()}
-                  disabled={checkOut.isPending}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  {checkOut.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <LogOut className="h-4 w-4" />
-                  )}
-                  Check Out
-                </Button>
-              </div>
-            )}
-
-            {/* State 1: Not checked in yet */}
-            {!todayAtt?.checkIn && (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  You haven&apos;t checked in yet today.
-                </p>
-                <Button
-                  onClick={() => checkIn.mutate()}
-                  disabled={checkIn.isPending}
-                  className="gap-2"
-                >
-                  {checkIn.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <LogIn className="h-4 w-4" />
-                  )}
-                  Check In
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Attendance History header with period navigation (employee) */}
-      {!isAdmin && (
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Attendance History
-          </h2>
-          {!dateRange && (
-            <div className="flex items-center gap-1">
+        {/* ─── Top Controls & Summary Badges (Matches Excalidraw) ───────────── */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl border bg-card shadow-xs">
+          {/* Month Navigator */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
-                onClick={() => setWeekOffset((w) => w - 1)}
+                onClick={() => setCurrentMonth((prev) => subMonths(prev, 1))}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                title="Previous Month"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-xs text-muted-foreground min-w-[160px] text-center">
-                {format(currentWeekStart, "MMM d")} – {format(currentWeekEnd, "MMM d, yyyy")}
-              </span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
-                disabled={isCurrentWeek}
-                onClick={() => setWeekOffset((w) => w + 1)}
+                onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                title="Next Month"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              {!isCurrentWeek && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setWeekOffset(0)}
-                >
-                  This Week
-                </Button>
-              )}
             </div>
-          )}
+
+            <Select
+              value={format(currentMonth, "yyyy-MM")}
+              onValueChange={(val) => {
+                if (val) {
+                  const [y, m] = val.split("-");
+                  setCurrentMonth(new Date(parseInt(y), parseInt(m) - 1, 1));
+                }
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs font-semibold w-36">
+                <SelectValue>{format(currentMonth, "MMM yyyy")}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {[-5, -4, -3, -2, -1, 0, 1, 2].map((offset) => {
+                  const d = addMonths(new Date(), offset);
+                  const val = format(d, "yyyy-MM");
+                  return (
+                    <SelectItem key={val} value={val}>
+                      {format(d, "MMMM yyyy")}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Summary Stat Badges */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="px-3 py-2 rounded-lg border bg-emerald-500/10 border-emerald-500/20 text-center sm:text-left">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                Count of days present
+              </p>
+              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">
+                {presentCount}
+              </p>
+            </div>
+
+            <div className="px-3 py-2 rounded-lg border bg-amber-500/10 border-amber-500/20 text-center sm:text-left">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                Leaves count
+              </p>
+              <p className="text-lg font-bold text-amber-700 dark:text-amber-400 font-mono mt-0.5">
+                {leaveCount}
+              </p>
+            </div>
+
+            <div className="px-3 py-2 rounded-lg border bg-primary/10 border-primary/20 text-center sm:text-left">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                Total working days
+              </p>
+              <p className="text-lg font-bold text-primary font-mono mt-0.5">
+                {totalWorkingDays}
+              </p>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "ALL")}>
-          <SelectTrigger className="w-36 h-9">
-            <Filter className="h-3.5 w-3.5 mr-1.5" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Status</SelectItem>
-            <SelectItem value="PRESENT">Present</SelectItem>
-            <SelectItem value="ABSENT">Absent</SelectItem>
-            <SelectItem value="HALF_DAY">Half Day</SelectItem>
-            <SelectItem value="LEAVE">On Leave</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <DatePickerWithRange
-          date={dateRange}
-          setDate={(d) => { setDateRange(d); if (!d) setWeekOffset(0); }}
-          placeholder="Filter by date range"
-          triggerClassName="w-[240px]"
-        />
-
-        {isAdmin && (
-          <SearchInput
-            id="attendance-search"
-            value={employeeSearch}
-            onChange={setEmployeeSearch}
-            placeholder="Search employee..."
-            className="flex-1 min-w-48"
-          />
-        )}
-      </div>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6 space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : !filtered || filtered.length === 0 ? (
-            <EmptyState
-              icon={CalendarDays}
-              title="No attendance records found"
-              description={
-                statusFilter !== "ALL" || dateRange
-                  ? "Try adjusting your filters"
-                  : "Attendance records will appear here once you check in"
-              }
-            />
-          ) : (
+        {/* Day-Wise Table */}
+        <Card className="border shadow-xs overflow-hidden">
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    {isAdmin && <TableHead className="w-48">Employee</TableHead>}
-                    <TableHead>Date</TableHead>
-                    <TableHead>Check In</TableHead>
-                    <TableHead>Check Out</TableHead>
-                    <TableHead>Worked</TableHead>
-                    <TableHead>Status</TableHead>
+                  <TableRow className="bg-muted/40 hover:bg-transparent">
+                    <TableHead className="font-semibold text-xs py-3 w-[25%]">Date</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Check In</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Check Out</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Work Hours</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Extra hours</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((record) => (
-                    <TableRow key={record.id}>
-                      {isAdmin && (
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-7 w-7">
-                              <AvatarImage src={record.employee?.profileImage ?? undefined} />
-                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                {getInitials(
-                                  `${record.employee?.firstName} ${record.employee?.lastName}`
-                                )}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">
-                              {record.employee?.firstName} {record.employee?.lastName}
-                            </span>
-                          </div>
-                        </TableCell>
-                      )}
-                      <TableCell className="text-sm">
-                        {formatDate(record.attendanceDate)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {record.checkIn ? formatTime(record.checkIn) : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {record.checkOut ? formatTime(record.checkOut) : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {record.workedMinutes > 0
-                          ? formatWorkedTime(record.workedMinutes)
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE_CLASS[record.status as AttendanceStatus]}`}
+                  {isMonthlyLoading ? (
+                    [1, 2, 3, 4, 5].map((i) => (
+                      <TableRow key={i}>
+                        {[1, 2, 3, 4, 5].map((j) => (
+                          <TableCell key={j} className="py-3">
+                            <Skeleton className="h-6 w-full" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    monthDays.map((row) => {
+                      const isCurrentDay = isSameDay(row.date, new Date());
+                      return (
+                        <TableRow
+                          key={row.dateFormatted}
+                          className={`transition-colors ${
+                            isCurrentDay ? "bg-primary/5 font-semibold" : row.isWeekend ? "bg-muted/15 opacity-70" : "hover:bg-muted/30"
+                          }`}
                         >
-                          {ATTENDANCE_STATUS_CONFIG[record.status as AttendanceStatus]?.label}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <TableCell className="py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-semibold text-foreground">
+                                {row.dateFormatted}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] py-0 px-1.5 font-normal ${
+                                  row.isWeekend
+                                    ? "bg-muted text-muted-foreground"
+                                    : isCurrentDay
+                                    ? "bg-primary/10 text-primary border-primary/30"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {row.dayName}
+                              </Badge>
+                              {isCurrentDay && (
+                                <span className="text-[10px] text-primary font-bold uppercase tracking-wider">
+                                  Today
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="font-mono text-xs font-medium py-3">
+                            {row.checkInFormatted !== "—" ? (
+                              <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                                {row.checkInFormatted}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="font-mono text-xs font-medium py-3">
+                            {row.checkOutFormatted !== "—" ? (
+                              <span className="text-foreground font-semibold">
+                                {row.checkOutFormatted}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="font-mono text-xs font-bold py-3">
+                            {row.workHoursFormatted !== "00:00" ? (
+                              <span className="text-foreground">{row.workHoursFormatted}</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">00:00</span>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="font-mono text-xs font-semibold py-3">
+                            {row.extraHoursFormatted !== "00:00" ? (
+                              <span className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded">
+                                +{row.extraHoursFormatted}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60">00:00</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </div>
-          )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── ADMIN / HR OFFICER: DAILY TEAM VIEW (Diagram 1 with Searchbar) ────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (isAdmin) {
+    return (
+      <div className="space-y-6 w-full pb-12">
+        {/* ─── Top Header Bar: Title + Prominent Searchbar (Matches Excalidraw) ─ */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              Daily employee attendance, check-ins, and overtime hours
+            </p>
+          </div>
+
+          {/* Prominent Searchbar on Header (per Excalidraw diagram) */}
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={adminSearch}
+                onChange={(e) => setAdminSearch(e.target.value)}
+                placeholder="Search employee by name, ID..."
+                className="pl-9 pr-8 h-9 text-xs shadow-xs"
+              />
+              {adminSearch && (
+                <button
+                  type="button"
+                  onClick={() => setAdminSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <ExportButton
+              data={adminDailyRows}
+              filename={`attendance-${formattedSelectedDate}`}
+              columns={[
+                { header: "Employee", accessor: (r) => `${r.employee.firstName} ${r.employee.lastName}` },
+                { header: "Login ID", accessor: (r) => r.employee.user?.employeeId || "" },
+                { header: "Check In", accessor: (r) => r.checkInFormatted },
+                { header: "Check Out", accessor: (r) => r.checkOutFormatted },
+                { header: "Work Hours", accessor: (r) => r.workHoursFormatted },
+                { header: "Extra Hours", accessor: (r) => r.extraHoursFormatted },
+                { header: "Status", accessor: (r) => r.status },
+              ]}
+            />
+          </div>
+        </div>
+
+        {/* ─── Navigation Row: [ <- ] [ -> ] [ Date Picker ] [ Day (Today) ] ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-xl border bg-card shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDate((prev) => subDays(prev, 1))}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                title="Previous Day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDate((prev) => addDays(prev, 1))}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                title="Next Day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Date Picker Input */}
+            <div className="relative">
+              <Input
+                type="date"
+                value={formattedSelectedDate}
+                onChange={(e) => {
+                  if (e.target.value) setSelectedDate(new Date(e.target.value));
+                }}
+                className="h-9 text-xs font-medium w-40"
+              />
+            </div>
+
+            <Button
+              variant={isToday(selectedDate) ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedDate(new Date())}
+              className="h-9 text-xs px-3 font-medium"
+            >
+              Day (Today)
+            </Button>
+          </div>
+
+          {/* Filters: Department + Designation + Quick Inspect User */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Department Filter */}
+<Select
+              value={selectedDepartment}
+              onValueChange={(val) => setSelectedDepartment(val ?? "ALL")}
+            >
+              <SelectTrigger className="h-9 text-xs w-40">
+                <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue placeholder="Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Departments</SelectItem>
+                {DEPARTMENTS.map((dept) => (
+                  <SelectItem key={dept} value={dept}>
+                    {dept}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Designation Filter */}
+            <Select
+              value={selectedDesignation}
+              onValueChange={(val) => setSelectedDesignation(val ?? "ALL")}
+            >
+              <SelectTrigger className="h-9 text-xs w-44">
+                <Briefcase className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue placeholder="Designation" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Designations</SelectItem>
+                {uniqueDesignations.map((desig) => (
+                  <SelectItem key={desig} value={desig}>
+                    {desig}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Attendance Status Filter (Present / On Leave / Absent) */}
+            <Select
+              value={selectedStatus}
+              onValueChange={(val) => setSelectedStatus(val ?? "ALL")}
+            >
+              <SelectTrigger className="h-9 text-xs w-36">
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Statuses</SelectItem>
+                <SelectItem value="PRESENT">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />
+                    Present
+                  </span>
+                </SelectItem>
+                <SelectItem value="LEAVE">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-amber-400 inline-block" />
+                    On Leave
+                  </span>
+                </SelectItem>
+                <SelectItem value="ABSENT">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-red-500 inline-block" />
+                    Absent
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Inspect User Dropdown */}
+            <Select
+
+              value={selectedEmployeeId || "ALL"}
+              onValueChange={(val) => {
+                if (val === "ALL") setSelectedEmployeeId(null);
+                else setSelectedEmployeeId(val);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs w-48">
+                <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue placeholder="Inspect User" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Users (Daily)</SelectItem>
+                {(allEmployees || []).map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName} ({emp.user?.employeeId})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+
+        {/* Date Display Banner (from Excalidraw) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold tracking-tight">
+              {format(selectedDate, "d, MMMM yyyy")}
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" />
+              Present ({adminDailyRows.filter((r) => r.status === "PRESENT" || r.checkInFormatted !== "—").length})
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-400 inline-block" />
+              On Leave ({adminDailyRows.filter((r) => r.status === "LEAVE").length})
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />
+              Absent ({adminDailyRows.filter((r) => r.status === "ABSENT" && r.checkInFormatted === "—").length})
+            </span>
+          </div>
+        </div>
+
+        {/* ─── Admin Attendance List Table (Matches Excalidraw) ─────────────── */}
+        <Card className="border shadow-xs overflow-hidden">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-transparent">
+                    <TableHead className="font-semibold text-xs py-3 w-[32%]">Emp</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Check In</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Check Out</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Work Hours</TableHead>
+                    <TableHead className="font-semibold text-xs py-3">Extra hours</TableHead>
+                    <TableHead className="font-semibold text-xs py-3 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyLoading || empLoading ? (
+                    [1, 2, 3, 4, 5].map((i) => (
+                      <TableRow key={i}>
+                        {[1, 2, 3, 4, 5, 6].map((j) => (
+                          <TableCell key={j} className="py-3">
+                            <Skeleton className="h-6 w-full" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : adminDailyRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground text-sm">
+                        {adminSearch
+                          ? "No employees matched your search query."
+                          : "No attendance records found for this date."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    adminDailyRows.map((row) => {
+                      const isPresent =
+                        row.status === "PRESENT" || row.checkInFormatted !== "—";
+                      return (
+                        <TableRow
+                          key={row.employee.id}
+                          className="hover:bg-muted/30 transition-colors"
+                        >
+                          {/* Emp Column */}
+                          <TableCell className="py-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9 ring-2 ring-background shadow-xs">
+                                <AvatarImage src={row.employee.profileImage ?? undefined} />
+                                <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                                  {getInitials(
+                                    `${row.employee.firstName} ${row.employee.lastName}`
+                                  )}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-xs font-semibold tracking-tight text-foreground">
+                                  {row.employee.firstName} {row.employee.lastName}
+                                </p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded">
+                                    {row.employee.user?.employeeId}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground">
+                                    • {row.employee.designation || row.employee.department || "Team"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* Check In */}
+                          <TableCell className="font-mono text-xs font-medium py-3">
+                            {row.checkInFormatted !== "—" ? (
+                              <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                                {row.checkInFormatted}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* Check Out */}
+                          <TableCell className="font-mono text-xs font-medium py-3">
+                            {row.checkOutFormatted !== "—" ? (
+                              <span className="text-foreground font-semibold">
+                                {row.checkOutFormatted}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* Work Hours */}
+                          <TableCell className="font-mono text-xs font-bold py-3">
+                            {row.workHoursFormatted !== "00:00" ? (
+                              <span className="text-foreground">{row.workHoursFormatted}</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">00:00</span>
+                            )}
+                          </TableCell>
+
+                          {/* Extra Hours (Overtime) */}
+                          <TableCell className="font-mono text-xs font-semibold py-3">
+                            {row.extraHoursFormatted !== "00:00" ? (
+                              <span className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded">
+                                +{row.extraHoursFormatted}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60">00:00</span>
+                            )}
+                          </TableCell>
+
+                          {/* Actions: View Monthly Record */}
+                          <TableCell className="py-3 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedEmployeeId(row.employee.id)}
+                              className="h-7 text-xs gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              View Sheet
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── EMPLOYEE VIEW: Monthly Day-Wise (Diagram 2) ──────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  return (
+    <div className="space-y-6 w-full pb-12">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">
+          Day-wise attendance for ongoing month displaying working time and breaks
+        </p>
+      </div>
+
+      {/* ─── Top Controls & Summary Badges (Matches Excalidraw) ─────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl border bg-card shadow-xs">
+        {/* Month Navigator */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentMonth((prev) => subMonths(prev, 1))}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title="Previous Month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title="Next Month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Select
+            value={format(currentMonth, "yyyy-MM")}
+            onValueChange={(val) => {
+              if (val) {
+                const [y, m] = val.split("-");
+                setCurrentMonth(new Date(parseInt(y), parseInt(m) - 1, 1));
+              }
+            }}
+          >
+            <SelectTrigger className="h-9 text-xs font-semibold w-36">
+              <SelectValue>{format(currentMonth, "MMM yyyy")}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {[-3, -2, -1, 0, 1, 2].map((offset) => {
+                const d = addMonths(new Date(), offset);
+                const val = format(d, "yyyy-MM");
+                return (
+                  <SelectItem key={val} value={val}>
+                    {format(d, "MMMM yyyy")}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* ─── Summary Stat Badges (per Excalidraw) ─────────────────────────── */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="px-3 py-2 rounded-lg border bg-emerald-500/10 border-emerald-500/20 text-center sm:text-left">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+              Count of days present
+            </p>
+            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">
+              {presentCount}
+            </p>
+          </div>
+
+          <div className="px-3 py-2 rounded-lg border bg-amber-500/10 border-amber-500/20 text-center sm:text-left">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+              Leaves count
+            </p>
+            <p className="text-lg font-bold text-amber-700 dark:text-amber-400 font-mono mt-0.5">
+              {leaveCount}
+            </p>
+          </div>
+
+          <div className="px-3 py-2 rounded-lg border bg-primary/10 border-primary/20 text-center sm:text-left">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+              Total working days
+            </p>
+            <p className="text-lg font-bold text-primary font-mono mt-0.5">
+              {totalWorkingDays}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Month Display Banner */}
+      <div className="flex items-center gap-2 px-1">
+        <Clock className="h-4 w-4 text-primary" />
+        <span className="text-sm font-semibold tracking-tight">
+          {format(currentMonth, "MMMM yyyy")} — Day-Wise Records
+        </span>
+      </div>
+
+      {/* ─── Employee Day-Wise Table (Matches Excalidraw) ────────────────────── */}
+      <Card className="border shadow-xs overflow-hidden">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-transparent">
+                  <TableHead className="font-semibold text-xs py-3 w-[25%]">Date</TableHead>
+                  <TableHead className="font-semibold text-xs py-3">Check In</TableHead>
+                  <TableHead className="font-semibold text-xs py-3">Check Out</TableHead>
+                  <TableHead className="font-semibold text-xs py-3">Work Hours</TableHead>
+                  <TableHead className="font-semibold text-xs py-3">Extra hours</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isMonthlyLoading ? (
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <TableRow key={i}>
+                      {[1, 2, 3, 4, 5].map((j) => (
+                        <TableCell key={j} className="py-3">
+                          <Skeleton className="h-6 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  monthDays.map((row) => {
+                    const isCurrentDay = isSameDay(row.date, new Date());
+                    return (
+                      <TableRow
+                        key={row.dateFormatted}
+                        className={`transition-colors ${
+                          isCurrentDay ? "bg-primary/5 font-semibold" : row.isWeekend ? "bg-muted/15 opacity-70" : "hover:bg-muted/30"
+                        }`}
+                      >
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-foreground">
+                              {row.dateFormatted}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] py-0 px-1.5 font-normal ${
+                                row.isWeekend
+                                  ? "bg-muted text-muted-foreground"
+                                  : isCurrentDay
+                                  ? "bg-primary/10 text-primary border-primary/30"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {row.dayName}
+                            </Badge>
+                            {isCurrentDay && (
+                              <span className="text-[10px] text-primary font-bold uppercase tracking-wider">
+                                Today
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="font-mono text-xs font-medium py-3">
+                          {row.checkInFormatted !== "—" ? (
+                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                              {row.checkInFormatted}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="font-mono text-xs font-medium py-3">
+                          {row.checkOutFormatted !== "—" ? (
+                            <span className="text-foreground font-semibold">
+                              {row.checkOutFormatted}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="font-mono text-xs font-bold py-3">
+                          {row.workHoursFormatted !== "00:00" ? (
+                            <span className="text-foreground">{row.workHoursFormatted}</span>
+                          ) : (
+                            <span className="text-muted-foreground/60">00:00</span>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="font-mono text-xs font-semibold py-3">
+                          {row.extraHoursFormatted !== "00:00" ? (
+                            <span className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded">
+                              +{row.extraHoursFormatted}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/60">00:00</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

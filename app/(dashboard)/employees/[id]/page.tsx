@@ -174,12 +174,13 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
           <TabsTrigger value="private" className="h-10 data-active:border-b-2 data-active:border-primary gap-1.5 px-1 font-medium">
             <Lock className="h-4 w-4" /> Private Info
           </TabsTrigger>
-          {isAdmin && salary && (
+          {isAdmin && (
             <TabsTrigger value="salary" className="h-10 data-active:border-b-2 data-active:border-primary gap-1.5 px-1 font-medium">
               <DollarSign className="h-4 w-4" /> Salary Info <Badge variant="secondary" className="text-[10px] ml-1">Admin</Badge>
             </TabsTrigger>
           )}
         </TabsList>
+
 
         {/* ─── TAB 1: RESUME ─── */}
         <TabsContent value="resume" className="space-y-6 pt-2">
@@ -358,7 +359,7 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
         </TabsContent>
 
         {/* ─── TAB 3: SALARY INFO (ADMIN ONLY) ─── */}
-        {isAdmin && salary && (
+        {isAdmin && (
           <TabsContent value="salary" className="space-y-6 pt-2">
             <Card>
               <CardHeader className="pb-3">
@@ -384,11 +385,11 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Working Days</p>
-                    <p className="text-sm font-semibold mt-0.5">{salary.workingDaysPerWeek || 5} days/week</p>
+                    <p className="text-sm font-semibold mt-0.5">{salary?.workingDaysPerWeek || 5} days/week</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Working Hours</p>
-                    <p className="text-sm font-semibold mt-0.5">{Number(salary.workingHoursPerDay || 8)} hrs/day</p>
+                    <p className="text-sm font-semibold mt-0.5">{Number(salary?.workingHoursPerDay || 8)} hrs/day</p>
                   </div>
                 </div>
 
@@ -425,4 +426,5 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
       </Tabs>
     </div>
   );
+
 }
