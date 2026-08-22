@@ -170,10 +170,6 @@ export async function PATCH(
           userUpdateData.email = email.toLowerCase();
         }
 
-        if (otherData.firstName || otherData.lastName) {
-          userUpdateData.name = `${otherData.firstName || ""} ${otherData.lastName || ""}`.trim();
-        }
-
         if (Object.keys(userUpdateData).length > 0) {
           await prisma.user.update({
             where: { id: currentEmp.userId },
@@ -181,6 +177,7 @@ export async function PATCH(
           });
         }
       }
+
     }
 
     const employee = await prisma.employee.update({

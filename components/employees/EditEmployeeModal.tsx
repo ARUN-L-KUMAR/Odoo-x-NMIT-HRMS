@@ -89,6 +89,7 @@ export function EditEmployeeModal({
       reset({
         firstName: employee.firstName || "",
         lastName: employee.lastName || "",
+        email: (employee.user as any)?.email || "",
         phone: employee.phone || "",
         designation: employee.designation || "",
         department: employee.department || "Engineering",
@@ -157,8 +158,8 @@ export function EditEmployeeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+      <DialogContent className="sm:max-w-4xl md:max-w-5xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl border">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b bg-muted/20">
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -168,7 +169,7 @@ export function EditEmployeeModal({
                 Admin mode: Update any field across employment, personal, resume, and banking records
               </DialogDescription>
             </div>
-            <span className="font-mono text-xs bg-muted px-2.5 py-1 rounded-md text-foreground font-semibold">
+            <span className="font-mono text-xs bg-muted px-2.5 py-1 rounded-md text-foreground font-semibold border">
               {(employee.user as any)?.employeeId || "EMP"}
             </span>
           </div>
@@ -178,37 +179,42 @@ export function EditEmployeeModal({
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            className="flex flex-col flex-1 overflow-hidden"
+            className="flex-1 flex flex-col overflow-hidden"
           >
-            <div className="px-6 pt-3 border-b bg-muted/20">
-              <TabsList className="grid grid-cols-3 w-full h-9">
+            <div className="px-6 pt-4 border-b bg-muted/10">
+              <TabsList className="grid grid-cols-3 max-w-md h-9">
                 <TabsTrigger value="basic" className="text-xs font-semibold gap-1.5">
-                  <Briefcase className="h-3.5 w-3.5" /> Basic & Employment
+                  <Briefcase className="h-3.5 w-3.5" /> Basic &amp; Employment
                 </TabsTrigger>
                 <TabsTrigger value="resume" className="text-xs font-semibold gap-1.5">
-                  <FileText className="h-3.5 w-3.5" /> Resume & Bio
+                  <FileText className="h-3.5 w-3.5" /> Resume &amp; Bio
                 </TabsTrigger>
                 <TabsTrigger value="private" className="text-xs font-semibold gap-1.5">
-                  <Lock className="h-3.5 w-3.5" /> Private & Banking
+                  <Lock className="h-3.5 w-3.5" /> Private &amp; Banking
                 </TabsTrigger>
               </TabsList>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* ─── TAB 1: BASIC & EMPLOYMENT ───────────────────────────────── */}
-              <TabsContent value="basic" className="space-y-4 m-0">
-                {/* Profile Image & Names */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* TAB 1: BASIC & EMPLOYMENT */}
+              <TabsContent value="basic" className="m-0 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                  <div className="md:col-span-4 space-y-1.5">
-                    <Label className="text-xs font-semibold">Profile Photo</Label>
+                  {/* Profile Photo */}
+                  <div className="md:col-span-4 flex flex-col items-center justify-center p-4 border rounded-xl bg-muted/20 text-center space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">Profile Photo</Label>
                     <ImageUpload
                       value={profileImage || ""}
                       onChange={(url) => setProfileImage(url || null)}
-                      label="Employee Picture"
+                      folder="HRMS"
+                      label="Change Photo"
+                      shape="circle"
+                      size="md"
                     />
                   </div>
 
-                  <div className="md:col-span-8 space-y-3">
+
+                  {/* Top Details */}
+                  <div className="md:col-span-8 space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold">First Name *</Label>
@@ -244,11 +250,12 @@ export function EditEmployeeModal({
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold">Work Email (Read Only)</Label>
+                        <Label className="text-xs font-semibold">Work Email (Login Email)</Label>
                         <Input
-                          value={employee.user?.email || ""}
-                          disabled
-                          className="h-9 text-xs bg-muted/60"
+                          type="email"
+                          {...register("email")}
+                          placeholder="employee@company.com"
+                          className="h-9 text-xs"
                         />
                       </div>
                     </div>
@@ -556,13 +563,14 @@ export function EditEmployeeModal({
             </div>
           </Tabs>
 
-          <DialogFooter className="px-6 py-3 border-t bg-muted/20 gap-2 sm:gap-0">
+          {/* Full-width Modal Action Footer */}
+          <div className="px-6 py-3.5 border-t bg-muted/20 flex items-center justify-end gap-3 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs"
+              className="h-9 px-4 text-xs font-medium"
             >
               Cancel
             </Button>
@@ -570,16 +578,22 @@ export function EditEmployeeModal({
               type="submit"
               size="sm"
               disabled={updateEmployee.isPending}
-              className="text-xs font-bold gap-1.5 shadow-xs"
+              className="h-9 px-5 text-xs font-bold gap-1.5 shadow-xs min-w-[130px]"
             >
               {updateEmployee.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
               ) : (
-                <Save className="h-3.5 w-3.5" />
+                <>
+                  <Save className="h-3.5 w-3.5" />
+                  Save Changes
+                </>
               )}
-              Save Changes
             </Button>
-          </DialogFooter>
+          </div>
+
         </form>
       </DialogContent>
     </Dialog>
