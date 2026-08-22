@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { companySetupSchema, type CompanySetupInput } from "@/lib/validations";
+import { ImageUpload } from "@/components/shared/image-upload";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 
@@ -25,10 +26,13 @@ export default function CompanySetupPage() {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CompanySetupInput>({
     resolver: zodResolver(companySetupSchema),
   });
+
 
   const onSubmit = async (data: CompanySetupInput) => {
     setError(null);
@@ -58,7 +62,7 @@ export default function CompanySetupPage() {
         redirect: false,
       });
 
-      setTimeout(() => router.push("/dashboard"), 2000);
+      setTimeout(() => router.push("/employees"), 2000);
     } catch (err: any) {
       setError(err.message || "Setup failed. Please try again.");
     }
@@ -127,7 +131,7 @@ export default function CompanySetupPage() {
           </div>
         )}
 
-        {/* Company Name */}
+        {/* Company Name & Logo */}
         <div className="space-y-2">
           <Label htmlFor="companyName">Company Name</Label>
           <Input
@@ -143,6 +147,20 @@ export default function CompanySetupPage() {
             Initials used to generate employee Login IDs (e.g. <strong>AC</strong>JODO20240001)
           </p>
         </div>
+
+        {/* Company Logo (Cloudinary upload) */}
+        <div className="space-y-2">
+          <Label>Company Logo <span className="text-muted-foreground">(optional)</span></Label>
+          <ImageUpload
+            value={watch("logoUrl") || null}
+            onChange={(url) => setValue("logoUrl", url)}
+            folder="HRMS"
+            label="Upload Logo"
+            shape="square"
+            size="md"
+          />
+        </div>
+
 
         {/* Full Name */}
         <div className="space-y-2">

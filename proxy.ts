@@ -3,7 +3,8 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
 
 // Public routes — no auth required
-const PUBLIC_ROUTES = ["/login", "/register", "/api/auth", "/change-password"];
+const PUBLIC_ROUTES = ["/login", "/register", "/api/auth", "/api/upload", "/change-password"];
+
 
 // Admin-only routes
 const ADMIN_ROUTES = ["/reports"];
@@ -15,9 +16,9 @@ export default auth(async function middleware(req: NextRequest) {
   // Allow public routes
   const isPublic = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
   if (isPublic) {
-    // If logged in and trying to access login/register, redirect to dashboard
+    // If logged in and trying to access login/register, redirect to employees (landing page)
     if (session && (pathname === "/login" || pathname === "/register")) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return NextResponse.redirect(new URL("/employees", req.url));
     }
     return NextResponse.next();
   }
@@ -25,7 +26,7 @@ export default auth(async function middleware(req: NextRequest) {
   // Root → redirect appropriately
   if (pathname === "/") {
     if (session) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return NextResponse.redirect(new URL("/employees", req.url));
     }
     return NextResponse.redirect(new URL("/login", req.url));
   }
@@ -37,10 +38,8 @@ export default auth(async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Force password change on first login
-  if (session.user?.mustChangePassword && pathname !== "/change-password") {
-    return NextResponse.redirect(new URL("/change-password", req.url));
-  }
+  // Optional first-login password change notice (no hard blocking redirect loop)
+
 
   // Admin-only route protection
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));

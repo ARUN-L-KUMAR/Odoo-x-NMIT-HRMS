@@ -1,6 +1,6 @@
 "use client";
 
-import { EmployeeCard } from "./EmployeeCard";
+import { EmployeeCard, type AttendanceStatus } from "./EmployeeCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Employee {
@@ -18,6 +18,8 @@ interface EmployeeGridProps {
   isLoading?: boolean;
   onCardClick?: (id: string) => void;
   emptyMessage?: string;
+  /** Map of employee DB id → today's attendance status */
+  attendanceStatusMap?: Record<string, AttendanceStatus>;
 }
 
 export function EmployeeGrid({
@@ -25,16 +27,20 @@ export function EmployeeGrid({
   isLoading,
   onCardClick,
   emptyMessage = "No employees found.",
+  attendanceStatusMap = {},
 }: EmployeeGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <div key={i} className="flex flex-col items-center gap-3 rounded-xl border bg-card p-5">
-            <Skeleton className="h-16 w-16 rounded-full" />
+          <div key={i} className="flex flex-col items-center gap-3 rounded-2xl border bg-card p-5">
+            <div className="relative">
+              <Skeleton className="h-20 w-20 rounded-full" />
+              <Skeleton className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full" />
+            </div>
             <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-20" />
             <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-5 w-20 rounded-full" />
           </div>
         ))}
       </div>
@@ -61,6 +67,7 @@ export function EmployeeGrid({
           department={emp.department}
           profileImage={emp.profileImage}
           employmentStatus={emp.employmentStatus}
+          attendanceStatus={attendanceStatusMap[emp.id] ?? "UNKNOWN"}
           onClick={onCardClick ? () => onCardClick(emp.id) : undefined}
         />
       ))}

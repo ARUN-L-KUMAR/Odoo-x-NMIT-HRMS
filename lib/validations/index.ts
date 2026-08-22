@@ -12,6 +12,7 @@ export const loginSchema = z.object({
 export const companySetupSchema = z
   .object({
     companyName: z.string().min(2, "Company name is required"),
+    logoUrl: z.string().optional().nullable(),
     name: z.string().min(2, "Your full name is required"),
     email: z.string().email("Invalid email address"),
     phone: z.string().optional(),
@@ -23,6 +24,7 @@ export const companySetupSchema = z
       .regex(/[0-9]/, "Must contain at least one number"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
+
   .refine((d) => d.password === d.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
@@ -139,8 +141,11 @@ export const salarySchema = z.object({
 // ─── Type Exports ─────────────────────────────────────────────────────────────
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type CompanySetupInput = z.infer<typeof companySetupSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 export type SelfUpdateEmployeeInput = z.infer<typeof selfUpdateEmployeeSchema>;
 export type CreateLeaveInput = z.infer<typeof createLeaveSchema>;
 export type LeaveReviewInput = z.infer<typeof leaveReviewSchema>;
 export type SalaryInput = z.infer<typeof salarySchema>;
+

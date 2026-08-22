@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Remove employeeId and password from body — system generates them
-    const { firstName, lastName, email, phone, designation, department, joiningDate, employmentStatus } = body;
+    const { firstName, lastName, email, phone, designation, department, joiningDate, employmentStatus, profileImage } = body;
 
     // Basic validation
     if (!firstName || !lastName || !email) {
@@ -172,11 +172,13 @@ export async function POST(req: NextRequest) {
             department: department || null,
             joiningDate: joiningDate ? new Date(joiningDate) : undefined,
             employmentStatus: employmentStatus || "ACTIVE",
+            profileImage: profileImage || null,
           },
         },
       },
       include: { employee: { select: employeeSelect } },
     });
+
 
     // Log activity
     await prisma.activityLog.create({

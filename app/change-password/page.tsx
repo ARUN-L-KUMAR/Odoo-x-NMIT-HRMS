@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from "lucide-react";
@@ -13,7 +13,8 @@ import { changePasswordSchema, type ChangePasswordInput } from "@/lib/validation
 
 export default function ChangePasswordPage() {
   const router = useRouter();
-  const { data: session, update } = useSession();
+  const { data: session } = useSession();
+
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -44,13 +45,26 @@ export default function ChangePasswordPage() {
       }
 
       setSuccess(true);
-      // Update session to clear mustChangePassword
-      await update({ mustChangePassword: false });
-      setTimeout(() => router.push("/dashboard"), 1500);
+
+      // Re-sign in with new password to get a fresh session token where mustChangePassword is false
+      const identifier = result.data?.email || result.data?.employeeId;
+      if (identifier) {
+        await signIn("credentials", {
+          identifier,
+          password: data.newPassword,
+          redirect: false,
+        });
+      }
+
+      // Hard redirect to employees page to ensure middleware picks up fresh cookies
+      setTimeout(() => {
+        window.location.href = "/employees";
+      }, 800);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
     }
   };
+
 
   const isMustChange = session?.user?.mustChangePassword;
 

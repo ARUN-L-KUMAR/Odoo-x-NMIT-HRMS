@@ -130,9 +130,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         })}
       </nav>
 
-      {/* User section */}
-      <div className="flex-shrink-0 border-t border-sidebar-border p-2 space-y-0.5">
-        {/* Logout */}
+      {/* Footer / Logout */}
+      <div className="flex-shrink-0 border-t border-sidebar-border p-2">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive"
@@ -140,29 +139,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           <LogOut className="h-4 w-4 flex-shrink-0" />
           {!collapsed && <span>Logout</span>}
         </button>
-
-        <Separator className="my-2 bg-sidebar-border" />
-
-        {/* User avatar */}
-        <div className="flex items-center gap-3 px-3 py-2">
-          <Avatar className="h-7 w-7 flex-shrink-0">
-            <AvatarImage src={userImage ?? undefined} />
-            <AvatarFallback className="text-xs bg-primary/20 text-primary">
-              {getInitials(userName)}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-sidebar-foreground truncate">
-                {userName}
-              </p>
-              <p className="text-[11px] text-sidebar-foreground/50 truncate capitalize">
-                {session?.user?.role?.toLowerCase() || "user"}
-              </p>
-            </div>
-          )}
-        </div>
       </div>
     </aside>
   );
 }
+

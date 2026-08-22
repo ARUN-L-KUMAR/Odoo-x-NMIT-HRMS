@@ -65,7 +65,15 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    return Response.json({ success: true, data: null, message: "Password changed successfully" });
+    return Response.json({
+      success: true,
+      data: {
+        email: session.user.email,
+        employeeId: session.user.employeeId,
+      },
+      message: "Password changed successfully",
+    });
+
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED") {
       return Response.json(

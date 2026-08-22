@@ -70,7 +70,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { companyName, name, email, phone, password } = parsed.data;
+    const { companyName, logoUrl, name, email, phone, password } = parsed.data;
+
 
     // Check if company already exists (prevent duplicate setup)
     const existingCompany = await prisma.company.findFirst();
@@ -109,8 +110,9 @@ export async function POST(req: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create company
       const company = await tx.company.create({
-        data: { name: companyName, initials },
+        data: { name: companyName, initials, logoUrl: logoUrl || null },
       });
+
 
       // 2. Create admin user
       const user = await tx.user.create({

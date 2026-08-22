@@ -15,7 +15,9 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useEmployeeDashboard, useUpdateEmployee } from "@/hooks";
 import { selfUpdateEmployeeSchema, changePasswordSchema, type SelfUpdateEmployeeInput, type ChangePasswordInput } from "@/lib/validations";
+import { ImageUpload } from "@/components/shared/image-upload";
 import { getInitials, formatDate } from "@/lib/utils";
+
 
 
 export default function ProfilePage() {
@@ -98,7 +100,7 @@ export default function ProfilePage() {
 
       {/* Profile Header */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-6 space-y-4">
           <div className="flex items-start gap-5">
             <Avatar className="h-20 w-20 ring-2 ring-background shadow">
               <AvatarImage src={employee?.profileImage ?? undefined} />
@@ -129,8 +131,30 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          <Separator />
+
+          <div>
+            <Label className="text-xs text-muted-foreground mb-2 block">Profile Photo (Cloudinary)</Label>
+            <ImageUpload
+              value={employee?.profileImage || null}
+              onChange={(url) => {
+                if (employee?.id) {
+                  updateEmployee.mutate({
+                    id: employee.id,
+                    data: { profileImage: url },
+                  });
+                }
+              }}
+              folder="HRMS"
+              label="Change Photo"
+              shape="circle"
+              size="sm"
+            />
+          </div>
         </CardContent>
       </Card>
+
 
       {/* Job Information (read-only) */}
       <Card>

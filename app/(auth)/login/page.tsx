@@ -40,7 +40,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push("/employees");
     router.refresh();
   };
 
