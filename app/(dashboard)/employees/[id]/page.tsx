@@ -90,74 +90,80 @@ export default function EmployeeViewOnlyProfilePage({ params }: PageProps) {
       {/* Profile Header Card */}
       <Card className="border shadow-xs overflow-hidden">
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-6 items-start">
-            {/* Avatar */}
-            <Avatar className="h-28 w-28 ring-4 ring-background shadow-md">
-              <AvatarImage src={employee.profileImage ?? undefined} alt={fullName} />
-              <AvatarFallback className="text-3xl font-bold bg-primary/10 text-primary">
-                {getInitials(fullName)}
-              </AvatarFallback>
-            </Avatar>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Side: Avatar + Identity (spanning 6 cols) */}
+            <div className="lg:col-span-6 flex flex-col sm:flex-row gap-5 items-start">
+              <Avatar className="h-24 w-24 ring-4 ring-background shadow-md shrink-0">
+                <AvatarImage src={employee.profileImage ?? undefined} alt={fullName} />
+                <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">
+                  {getInitials(fullName)}
+                </AvatarFallback>
+              </Avatar>
 
-            {/* Main Info */}
-            <div className="flex-1 space-y-3 min-w-0">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">{fullName}</h1>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <Badge variant="outline" className="font-mono text-xs">
-                    {employee.user?.employeeId}
-                  </Badge>
-                  <Badge className="bg-primary/10 text-primary border-primary/20 capitalize">
-                    {employee.designation || "Team Member"}
-                  </Badge>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[employee.employmentStatus] ?? "status-secondary"}`}
-                  >
-                    {employee.employmentStatus}
-                  </span>
+              {/* Main Info */}
+              <div className="flex-1 space-y-3 min-w-0">
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight">{fullName}</h1>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <Badge variant="outline" className="font-mono text-xs">
+                      {employee.user?.employeeId}
+                    </Badge>
+                    <Badge className="bg-primary/10 text-primary border-primary/20 capitalize text-xs">
+                      {employee.designation || "Team Member"}
+                    </Badge>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[employee.employmentStatus] ?? "status-secondary"}`}
+                    >
+                      {employee.employmentStatus}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground pt-1">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-                  <span className="truncate">{employee.user?.email || "—"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-                  <span>{employee.phone || "—"}</span>
+                <div className="space-y-2 text-sm text-muted-foreground pt-1">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-primary/70 shrink-0" />
+                    <span className="truncate text-xs">{employee.user?.email || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-primary/70 shrink-0" />
+                    <span className="text-xs">{employee.phone || "—"}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Right Column Info */}
-            <div className="w-full md:w-64 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 space-y-2.5 text-sm">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Company</p>
-                <p className="font-medium text-xs flex items-center gap-1.5 mt-0.5">
-                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  Dayflow
+            {/* Right Side: Company Details (spanning 6 cols, equal 2x2 grid) */}
+            <div className="lg:col-span-6 border-t lg:border-t-0 lg:border-l pt-4 lg:pt-0 lg:pl-8 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Company</p>
+                <p className="font-medium text-xs flex items-center gap-1.5 py-1">
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                  Datamoo
                 </p>
               </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Department</p>
-                <p className="font-medium text-xs flex items-center gap-1.5 mt-0.5">
-                  <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Department</p>
+                <p className="font-medium text-xs flex items-center gap-1.5 py-1">
+                  <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
                   {employee.department || "General"}
                 </p>
               </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Manager</p>
-                <p className="text-xs text-foreground font-medium mt-0.5">{employee.manager || "—"}</p>
+
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Manager</p>
+                <p className="text-xs text-foreground font-medium py-1">{employee.manager || "—"}</p>
               </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Location</p>
-                <p className="text-xs text-foreground font-medium mt-0.5">{employee.location || "Office"}</p>
+
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Location</p>
+                <p className="text-xs text-foreground font-medium py-1">{employee.location || "Office"}</p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
 
       {/* Tabs */}
       <Tabs defaultValue="resume" className="space-y-4">

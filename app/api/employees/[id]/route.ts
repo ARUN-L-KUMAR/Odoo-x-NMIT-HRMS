@@ -15,6 +15,13 @@ const publicEmployeeSelect = {
   joiningDate: true,
   employmentStatus: true,
   profileImage: true,
+  manager: true,
+  location: true,
+  about: true,
+  whatILoveAboutMyJob: true,
+  interestsAndHobbies: true,
+  skills: true,
+  certifications: true,
   user: {
     select: {
       id: true,
@@ -23,8 +30,8 @@ const publicEmployeeSelect = {
   },
 };
 
-// Full fields for admin only
-const adminEmployeeSelect = {
+// Full fields for admin or self profile
+const fullEmployeeSelect = {
   id: true,
   firstName: true,
   lastName: true,
@@ -38,6 +45,23 @@ const adminEmployeeSelect = {
   joiningDate: true,
   employmentStatus: true,
   profileImage: true,
+  manager: true,
+  location: true,
+  about: true,
+  whatILoveAboutMyJob: true,
+  interestsAndHobbies: true,
+  skills: true,
+  certifications: true,
+  dateOfBirth: true,
+  nationality: true,
+  personalEmail: true,
+  gender: true,
+  maritalStatus: true,
+  bankAccountNumber: true,
+  bankName: true,
+  bankIfsc: true,
+  panNumber: true,
+  uanNumber: true,
   createdAt: true,
   updatedAt: true,
   user: {
@@ -51,9 +75,6 @@ const adminEmployeeSelect = {
   salaryStructure: true,
 };
 
-// For PATCH operations
-const employeeSelect = adminEmployeeSelect;
-
 // GET /api/employees/:id
 export async function GET(
   req: NextRequest,
@@ -63,16 +84,14 @@ export async function GET(
     const session = await requireAuth();
     const { id } = await params;
     const isAdmin = session.user.role === Role.ADMIN;
+    const isSelf = session.user.employeeDbId === id;
 
     const employee = await prisma.employee.findUnique({
       where: { id },
-      select: {
-        companyId: true,
-        ...(isAdmin ? adminEmployeeSelect : publicEmployeeSelect),
-      },
+      select: (isAdmin || isSelf) ? fullEmployeeSelect : publicEmployeeSelect,
     });
 
-    if (!employee || (session.user.companyId && employee.companyId && employee.companyId !== session.user.companyId)) {
+    if (!employee) {
       return Response.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, { status: 404 });
     }
 
@@ -98,15 +117,9 @@ export async function PATCH(
       return Response.json({ success: false, error: { code: "FORBIDDEN", message: "You can only update your own profile" } }, { status: 403 });
     }
 
-    // Verify employee belongs to admin's company
-    const existing = await prisma.employee.findUnique({ where: { id }, select: { companyId: true } });
-    if (!existing || (session.user.companyId && existing.companyId && existing.companyId !== session.user.companyId)) {
-      return Response.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, { status: 404 });
-    }
-
     const body = await req.json();
 
-    // Employees can only update limited fields
+    // Employees can only update self fields, Admins can update all
     const schema = isAdmin ? updateEmployeeSchema : selfUpdateEmployeeSchema;
     const parsed = schema.safeParse(body);
 
@@ -114,22 +127,39 @@ export async function PATCH(
       return errorResponse("VALIDATION_ERROR", "Invalid data", parsed.error.flatten().fieldErrors as Record<string, string[]>, 422);
     }
 
+    const {
+      dateOfBirth,
+      joiningDate,
+      ...otherData
+    } = parsed.data as any;
+
+    const updateData: any = {
+      ...otherData,
+    };
+
+    // Sanitize dates properly for Prisma
+    if (dateOfBirth !== undefined) {
+      updateData.dateOfBirth = dateOfBirth && !isNaN(new Date(dateOfBirth).getTime())
+        ? new Date(dateOfBirth)
+        : null;
+    }
+
+    if (joiningDate !== undefined) {
+      updateData.joiningDate = joiningDate && !isNaN(new Date(joiningDate).getTime())
+        ? new Date(joiningDate)
+        : null;
+    }
+
     const employee = await prisma.employee.update({
       where: { id },
-      data: {
-        ...parsed.data,
-        joiningDate: (parsed.data as any).joiningDate
-          ? new Date((parsed.data as any).joiningDate)
-          : undefined,
-      },
-      select: employeeSelect,
+      data: updateData,
+      select: fullEmployeeSelect,
     });
 
     // Log activity
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        companyId: session.user.companyId || null,
         action: "PROFILE_UPDATED",
         entityType: "employee",
         entityId: id,
@@ -141,7 +171,7 @@ export async function PATCH(
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED") return Response.json({ success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } }, { status: 401 });
     console.error("[EMPLOYEE_PATCH]", error);
-    return Response.json({ success: false, error: { code: "INTERNAL_ERROR", message: "Something went wrong" } }, { status: 500 });
+    return Response.json({ success: false, error: { code: "INTERNAL_ERROR", message: error.message || "Something went wrong" } }, { status: 500 });
   }
 }
 
@@ -156,11 +186,6 @@ export async function DELETE(
 
     if (session.user.role !== Role.ADMIN) {
       return Response.json({ success: false, error: { code: "FORBIDDEN", message: "Admin only" } }, { status: 403 });
-    }
-
-    const existing = await prisma.employee.findUnique({ where: { id }, select: { companyId: true } });
-    if (!existing || (session.user.companyId && existing.companyId && existing.companyId !== session.user.companyId)) {
-      return Response.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, { status: 404 });
     }
 
     await prisma.employee.delete({ where: { id } });

@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plus, Users, Loader2, Copy, CheckCircle2, KeyRound,
-  Search, SlidersHorizontal,
+  Search, SlidersHorizontal, LayoutGrid, List,
 } from "lucide-react";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,6 +151,7 @@ export default function EmployeesPage() {
   const isAdmin = session?.user?.role === "ADMIN";
   const router = useRouter();
 
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("ALL");
   const [createOpen, setCreateOpen] = useState(false);
@@ -190,6 +192,106 @@ export default function EmployeesPage() {
     });
   };
 
+  // Reusable Employee Table View
+  const renderTableView = () => (
+    <Card className="border shadow-xs overflow-hidden">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent bg-muted/40">
+                <TableHead>Employee</TableHead>
+                <TableHead>Login ID</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Designation</TableHead>
+                <TableHead>Today</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading
+                ? [1, 2, 3, 4].map((i) => (
+                    <TableRow key={i}>
+                      {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                        <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                : (!employees || employees.length === 0) ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-sm">
+                        {search ? "No employees match your search" : "No employees found."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    employees.map((emp) => {
+                      const attStatus = attendanceMap[emp.id] ?? "UNKNOWN";
+                      const attDot: Record<string, string> = {
+                        PRESENT: "bg-emerald-500",
+                        LEAVE: "bg-amber-400",
+                        HALF_DAY: "bg-blue-400",
+                        ABSENT: "bg-red-500",
+                        UNKNOWN: "bg-zinc-400",
+                      };
+                      const attLabel: Record<string, string> = {
+                        PRESENT: "Present",
+                        LEAVE: "On Leave",
+                        HALF_DAY: "Half Day",
+                        ABSENT: "Absent",
+                        UNKNOWN: "—",
+                      };
+                      return (
+                        <TableRow
+                          key={emp.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => router.push(`/employees/${emp.id}`)}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={emp.profileImage ?? undefined} />
+                                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                  {getInitials(`${emp.firstName} ${emp.lastName}`)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">{emp.firstName} {emp.lastName}</p>
+                                <p className="text-xs text-muted-foreground">{emp.user?.email ?? ""}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded font-medium">
+                              {emp.user?.employeeId}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm">{emp.department || "—"}</TableCell>
+                          <TableCell className="text-sm">{emp.designation || "—"}</TableCell>
+                          <TableCell>
+                            <span className="flex items-center gap-1.5 text-xs font-medium">
+                              <span className={`h-2 w-2 rounded-full ${attDot[attStatus]}`} />
+                              {attLabel[attStatus]}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[emp.employmentStatus] || "status-secondary"}`}>
+                              {EMPLOYMENT_STATUS_CONFIG.find((s) => s.value === emp.employmentStatus)?.label || emp.employmentStatus}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {emp.joiningDate ? formatDate(emp.joiningDate) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   // ─── EMPLOYEE VIEW ────────────────────────────────────────────────────────
   if (!isAdmin) {
@@ -209,8 +311,8 @@ export default function EmployeesPage() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="flex flex-wrap gap-3">
+        {/* Search, Filter & View Toggle */}
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-48 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -231,16 +333,50 @@ export default function EmployeesPage() {
               {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
+
+          {/* Grid / List View Toggle */}
+          <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 ml-auto">
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              title="Grid View"
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                viewMode === "grid"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              title="List View"
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                viewMode === "list"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+          </div>
         </div>
 
-        {/* Grid */}
-        <EmployeeGrid
-          employees={employees ?? []}
-          isLoading={isLoading || attLoading}
-          attendanceStatusMap={attendanceMap}
-          onCardClick={(id) => router.push(`/employees/${id}`)}
-          emptyMessage={search ? "No employees match your search" : "No team members yet"}
-        />
+        {/* Conditional Grid or Table */}
+        {viewMode === "grid" ? (
+          <EmployeeGrid
+            employees={employees ?? []}
+            isLoading={isLoading || attLoading}
+            attendanceStatusMap={attendanceMap}
+            onCardClick={(id) => router.push(`/employees/${id}`)}
+            emptyMessage={search ? "No employees match your search" : "No team members yet"}
+          />
+        ) : (
+          renderTableView()
+        )}
       </div>
     );
   }
@@ -342,8 +478,8 @@ export default function EmployeesPage() {
 
       <CredentialsDialog open={credentialsOpen} onClose={() => setCredentialsOpen(false)} credentials={credentials} />
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      {/* Filters & View Toggle */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input id="employee-search-admin" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employees..." className="pl-9 h-9" />
@@ -357,103 +493,56 @@ export default function EmployeesPage() {
         </Select>
 
         {/* Status Legend */}
-        <div className="flex items-center gap-4 ml-auto text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground hidden md:flex">
           <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" />Present</span>
           <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-400 inline-block" />On Leave</span>
           <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />Absent</span>
         </div>
+
+        {/* Grid / List View Toggle */}
+        <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 ml-auto">
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            title="Grid View"
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+              viewMode === "grid"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Grid</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="List View"
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+              viewMode === "list"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <List className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">List</span>
+          </button>
+        </div>
       </div>
 
-      {/* Admin gets both: grid at top for visual + table for management */}
-      {/* Card grid for visual overview */}
-      <EmployeeGrid
-        employees={employees ?? []}
-        isLoading={isLoading || attLoading}
-        attendanceStatusMap={attendanceMap}
-        onCardClick={(id) => router.push(`/employees/${id}`)}
-        emptyMessage={search ? "No employees match your search" : "Add your first employee to get started"}
-      />
-
-      {/* Management Table */}
-      {employees && employees.length > 0 && (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Login ID</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Designation</TableHead>
-                    <TableHead>Today</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading
-                    ? [1, 2, 3].map((i) => (
-                        <TableRow key={i}>
-                          {[1, 2, 3, 4, 5, 6, 7].map((j) => (
-                            <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    : employees.map((emp) => {
-                        const attStatus = attendanceMap[emp.id] ?? "UNKNOWN";
-                        const attDot: Record<string, string> = {
-                          PRESENT: "bg-emerald-500",
-                          LEAVE: "bg-amber-400",
-                          HALF_DAY: "bg-blue-400",
-                          ABSENT: "bg-red-500",
-                          UNKNOWN: "bg-zinc-400",
-                        };
-                        const attLabel: Record<string, string> = {
-                          PRESENT: "Present",
-                          LEAVE: "On Leave",
-                          HALF_DAY: "Half Day",
-                          ABSENT: "Absent",
-                          UNKNOWN: "—",
-                        };
-                        return (
-                          <TableRow key={emp.id} className="cursor-pointer" onClick={() => router.push(`/employees/${emp.id}`)}>
-                            <TableCell>
-                              <div className="flex items-center gap-2.5">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={emp.profileImage ?? undefined} />
-                                  <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(`${emp.firstName} ${emp.lastName}`)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="text-sm font-medium">{emp.firstName} {emp.lastName}</p>
-                                  <p className="text-xs text-muted-foreground">{emp.user?.email ?? ""}</p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell><span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{emp.user?.employeeId}</span></TableCell>
-                            <TableCell className="text-sm">{emp.department || "—"}</TableCell>
-                            <TableCell className="text-sm">{emp.designation || "—"}</TableCell>
-                            <TableCell>
-                              <span className="flex items-center gap-1.5 text-xs">
-                                <span className={`h-2 w-2 rounded-full ${attDot[attStatus]}`} />
-                                {attLabel[attStatus]}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[emp.employmentStatus] || "status-secondary"}`}>
-                                {EMPLOYMENT_STATUS_CONFIG.find((s) => s.value === emp.employmentStatus)?.label || emp.employmentStatus}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{emp.joiningDate ? formatDate(emp.joiningDate) : "—"}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Conditional Rendering based on Toggle */}
+      {viewMode === "grid" ? (
+        <EmployeeGrid
+          employees={employees ?? []}
+          isLoading={isLoading || attLoading}
+          attendanceStatusMap={attendanceMap}
+          onCardClick={(id) => router.push(`/employees/${id}`)}
+          emptyMessage={search ? "No employees match your search" : "Add your first employee to get started"}
+        />
+      ) : (
+        renderTableView()
       )}
     </div>
   );
 }
+

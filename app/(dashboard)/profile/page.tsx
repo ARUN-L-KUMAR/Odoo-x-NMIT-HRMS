@@ -188,101 +188,106 @@ export default function ProfilePage() {
         {/* ─── Profile Header Card (Matches Excalidraw) ────────────────────────── */}
         <Card className="border shadow-xs overflow-hidden">
           <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-6 items-start">
-              {/* Avatar with floating Edit Photo button */}
-              <div className="flex flex-col items-center gap-2 shrink-0">
-                <Avatar className="h-28 w-28 ring-4 ring-background shadow-md">
-                  <AvatarImage src={watch("profileImage") || employee?.profileImage || undefined} />
-                  <AvatarFallback className="text-3xl font-bold bg-primary/10 text-primary">
-                    {getInitials(name || session?.user?.employeeId || "U")}
-                  </AvatarFallback>
-                </Avatar>
-                <ImageUpload
-                  value={watch("profileImage") || employee?.profileImage || null}
-                  onChange={(url) => {
-                    setValue("profileImage", url || "");
-                    if (employee?.id) {
-                      updateEmployee.mutate({ id: employee.id, data: { profileImage: url || null } });
-                    }
-                  }}
-                  folder="HRMS"
-                  label="Change Photo"
-                  shape="circle"
-                  size="sm"
-                  hidePreview={true}
-                />
-
-              </div>
-
-
-              {/* Left Column Info */}
-              <div className="flex-1 space-y-3 min-w-0">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">
-                    {name || session?.user?.employeeId}
-                  </h2>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {session?.user?.employeeId}
-                    </Badge>
-                    <Badge className="bg-primary/10 text-primary border-primary/20 capitalize">
-                      {employee?.designation || "Team Member"}
-                    </Badge>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Left Side: Avatar + Identity (spanning 6 cols) */}
+              <div className="lg:col-span-6 flex flex-col sm:flex-row gap-5 items-start">
+                {/* Avatar with Edit Photo button */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+                    <AvatarImage src={watch("profileImage") || employee?.profileImage || undefined} />
+                    <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">
+                      {getInitials(name || session?.user?.employeeId || "U")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <ImageUpload
+                    value={watch("profileImage") || employee?.profileImage || null}
+                    onChange={(url) => {
+                      setValue("profileImage", url || "");
+                      if (employee?.id) {
+                        updateEmployee.mutate({ id: employee.id, data: { profileImage: url || null } });
+                      }
+                    }}
+                    folder="HRMS"
+                    label="Change Photo"
+                    shape="circle"
+                    size="sm"
+                    hidePreview={true}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground pt-1">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-                    <span className="truncate">{session?.user?.email}</span>
+                {/* Left Info (Name, ID, Email, Phone) */}
+                <div className="flex-1 space-y-3 min-w-0">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight">
+                      {name || session?.user?.employeeId}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {session?.user?.employeeId}
+                      </Badge>
+                      <Badge className="bg-primary/10 text-primary border-primary/20 capitalize text-xs">
+                        {employee?.designation || "Team Member"}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-                    <Input
-                      {...register("phone")}
-                      placeholder="Mobile number"
-                      className="h-7 text-xs max-w-40 border-muted"
-                    />
+
+                  <div className="space-y-2 text-sm text-muted-foreground pt-1">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary/70 shrink-0" />
+                      <span className="truncate text-xs">{session?.user?.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-primary/70 shrink-0" />
+                      <Input
+                        {...register("phone")}
+                        placeholder="Mobile number"
+                        className="h-8 text-xs max-w-56 border-muted"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column Info (Company, Dept, Manager, Location) */}
-              <div className="w-full md:w-64 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 space-y-2.5 text-sm">
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Company</p>
-                  <p className="font-medium text-xs flex items-center gap-1.5 mt-0.5">
-                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    Dayflow
+              {/* Right Side: Company Details (spanning 6 cols, equal 2x2 grid) */}
+              <div className="lg:col-span-6 border-t lg:border-t-0 lg:border-l pt-4 lg:pt-0 lg:pl-8 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Company</p>
+                  <p className="font-medium text-xs flex items-center gap-1.5 py-1">
+                    <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                    {(session?.user as any)?.companyName || "Datamoo"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Department</p>
-                  <p className="font-medium text-xs flex items-center gap-1.5 mt-0.5">
-                    <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+
+                <div className="space-y-1">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Department</p>
+                  <p className="font-medium text-xs flex items-center gap-1.5 py-1">
+                    <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
                     {employee?.department || "General"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Manager</p>
+
+                <div className="space-y-1">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Manager</p>
                   <Input
                     {...register("manager")}
                     placeholder="Reports to..."
-                    className="h-7 text-xs border-muted mt-0.5"
+                    className="h-8 text-xs border-muted mt-0.5"
                   />
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Location</p>
+
+                <div className="space-y-1">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Location</p>
                   <Input
                     {...register("location")}
                     placeholder="Office / Remote"
-                    className="h-7 text-xs border-muted mt-0.5"
+                    className="h-8 text-xs border-muted mt-0.5"
                   />
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
+
 
         {/* ─── Profile Tabs (Resume | Private Info | Salary Info | Security) ──── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
